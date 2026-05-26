@@ -29,6 +29,7 @@ export function TodoFilter({ filter, stats, onFilterChange }: TodoFilterProps) {
           key={value}
           variant={filter === value ? "default" : "ghost"}
           size="sm"
+          aria-pressed={filter === value}
           onClick={() => onFilterChange(value)}
         >
           {label}

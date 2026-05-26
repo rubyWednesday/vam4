@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { filterTodos } from "@/lib/filter-todos"
 import type { Filter, Priority, Todo } from "@/lib/types"
 
 const STORAGE_KEY = "todos"
@@ -60,11 +61,7 @@ export function useTodos() {
     setAllTodos((prev) => prev.filter((t) => t.id !== id))
   }
 
-  const todos = allTodos.filter((t) => {
-    if (filter === "active") return !t.completed
-    if (filter === "completed") return t.completed
-    return true
-  })
+  const todos = filterTodos(allTodos, filter)
 
   const stats = {
     total: allTodos.length,
