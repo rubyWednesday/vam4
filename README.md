@@ -64,3 +64,7 @@ bunx --bun shadcn@latest add button
 ```tsx
 import { Button } from "@/components/ui/button";
 ```
+
+## Contributors
+
+- 내 이름 - Frontend Developer
