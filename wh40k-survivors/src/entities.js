@@ -4,6 +4,10 @@
 // ============================================================
 import { PLAYER_DATA, ENEMY_DATA, xpForLevel } from './data.js';
 import { dist, distSq, normalize, lerp, clamp, randRange } from './engine.js';
+import {
+  drawSpaceMarine, drawHormagaunt, drawOrkBoy,
+  drawTyranidWarrior, drawCarnifex, drawWarboss,
+} from './sprites.js';
 
 // ============================================================
 // Player
@@ -83,49 +87,16 @@ export class Player {
   draw(ctx, camera) {
     const { x, y } = camera.toScreen(this.x, this.y);
     const r = this.radius;
-
-    // Glow aura
-    const grd = ctx.createRadialGradient(x, y, r, x, y, r+18);
-    grd.addColorStop(0, 'rgba(76,175,80,0.35)');
-    grd.addColorStop(1, 'rgba(76,175,80,0)');
-    ctx.fillStyle = grd;
-    ctx.beginPath();
-    ctx.arc(x, y, r+18, 0, Math.PI*2);
-    ctx.fill();
-
-    // Body — space marine power armour silhouette (rect + shoulders)
     const flash = this.hitFlash > 0;
-    ctx.fillStyle = flash ? '#ffffff' : '#3a7d3a';
-    ctx.fillRect(x - r, y - r, r*2, r*2);
 
-    // Shoulder pads
-    ctx.fillStyle = flash ? '#ffffff' : '#2E7D32';
-    ctx.fillRect(x - r - 5, y - r + 2, 6, r*0.9);  // left
-    ctx.fillRect(x + r - 1, y - r + 2, 6, r*0.9);  // right
+    // Facing angle: rotate character toward movement direction
+    const angle = Math.atan2(this.facing.y, this.facing.x) + Math.PI / 2;
 
-    // Helmet stripe
-    ctx.fillStyle = flash ? '#aaaaaa' : '#FFD700';
-    ctx.fillRect(x - 3, y - r + 2, 6, r*0.55);
-
-    // Chapter symbol (small cross)
-    ctx.fillStyle = flash ? '#ccc' : '#fff';
-    ctx.fillRect(x - 1, y - 4, 2, 8);
-    ctx.fillRect(x - 4, y - 1, 8, 2);
-
-    // Direction dot
-    ctx.fillStyle = '#FFD700';
-    ctx.beginPath();
-    ctx.arc(x + this.facing.x * (r+4), y + this.facing.y * (r+4), 3, 0, Math.PI*2);
-    ctx.fill();
-
-    // HP bar
-    const bw = 44, bh = 5, bx = x - bw/2, by = y - r - 14;
-    ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(bx-1, by-1, bw+2, bh+2);
-    ctx.fillStyle = '#c0392b';
-    ctx.fillRect(bx, by, bw * (this.hp/this.maxHp), bh);
-    ctx.fillStyle = '#e74c3c';
-    ctx.fillRect(bx, by, Math.min(bw * (this.hp/this.maxHp), bw)*0.3, bh);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    drawSpaceMarine(ctx, r, flash);
+    ctx.restore();
   }
 }
 
@@ -153,7 +124,8 @@ export class Enemy {
     this.knockX      = 0;
     this.knockY      = 0;
     this.knockDecay  = 0;
-    this.damageAccum = 0;   // for DPS damage fields
+    this.damageAccum = 0;
+    this.facingAngle = 0;  // radians, updated each frame
     return this;
   }
 
@@ -162,6 +134,7 @@ export class Enemy {
     const dx = player.x - this.x;
     const dy = player.y - this.y;
     const d  = Math.sqrt(dx*dx + dy*dy) || 1;
+    this.facingAngle = Math.atan2(dy, dx) + Math.PI / 2;  // face toward player
     this.x += (dx/d) * this.speed * dt + this.knockX * dt;
     this.y += (dy/d) * this.speed * dt + this.knockY * dt;
     this.knockX *= Math.pow(0.05, dt);
@@ -181,42 +154,47 @@ export class Enemy {
   draw(ctx, camera) {
     if (!this.active) return;
     const { x, y } = camera.toScreen(this.x, this.y);
-    const r = this.radius;
+    const r     = this.radius;
     const flash = this.hitFlash > 0;
+    const id    = this.data.id;
 
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(this.facingAngle);
+
+    switch (id) {
+      case 'hormagaunt': drawHormagaunt(ctx, r, flash);    break;
+      case 'boyz':       drawOrkBoy(ctx, r, flash);        break;
+      case 'warrior':    drawTyranidWarrior(ctx, r, flash); break;
+      case 'carnifex':   drawCarnifex(ctx, r, flash, this.hp, this.maxHp); break;
+      case 'warboss':    drawWarboss(ctx, r, flash);       break;
+      default:           // fallback diamond
+        ctx.rotate(Math.PI / 4);
+        ctx.fillStyle = flash ? '#fff' : this.color;
+        ctx.fillRect(-r * 0.75, -r * 0.75, r * 1.5, r * 1.5);
+    }
+
+    ctx.restore();
+
+    // Boss HP bar
     if (this.isBoss) {
-      // Boss: hexagon shape
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) {
-        const a = (i/6)*Math.PI*2 - Math.PI/6;
-        i === 0 ? ctx.moveTo(Math.cos(a)*r, Math.sin(a)*r)
-                : ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r);
-      }
-      ctx.closePath();
-      ctx.fillStyle = flash ? '#ffffff' : this.color;
-      ctx.fill();
-      ctx.strokeStyle = '#ff0000';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      ctx.restore();
-
-      // Boss HP bar (wider, above enemy)
-      const bw = r*3, bh = 7;
-      const bx = x - bw/2, by = y - r - 16;
-      ctx.fillStyle = '#1a1a1a';
-      ctx.fillRect(bx-1, by-1, bw+2, bh+2);
-      ctx.fillStyle = '#8B0000';
-      ctx.fillRect(bx, by, bw * (this.hp/this.maxHp), bh);
-    } else {
-      // Normal: diamond / circle
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(Math.PI/4);
-      ctx.fillStyle = flash ? '#ffffff' : this.color;
-      ctx.fillRect(-r*0.75, -r*0.75, r*1.5, r*1.5);
-      ctx.restore();
+      const bw = r * 3.2, bh = 8;
+      const bx = x - bw / 2, by = y - r - 20;
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+      const pct = this.hp / this.maxHp;
+      const barColor = pct > 0.5 ? '#8B0000' : pct > 0.25 ? '#cc4400' : '#ff2200';
+      ctx.fillStyle = barColor;
+      ctx.fillRect(bx, by, bw * pct, bh);
+      ctx.strokeStyle = '#ff4444';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx, by, bw, bh);
+      // Boss name
+      ctx.font = 'bold 11px "Segoe UI"';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffaaaa';
+      ctx.fillText(this.data.name.toUpperCase(), x, by - 4);
+      ctx.textAlign = 'left';
     }
   }
 }
