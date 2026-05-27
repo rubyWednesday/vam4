@@ -57,6 +57,9 @@ export class Player {
     if (this.hitFlash   > 0) this.hitFlash   -= dt;
   }
 
+  /** Returns true if player is currently facing left */
+  get facingLeft() { return this.facing.x < 0; }
+
   /** Returns actual damage dealt (after armor), or 0 if invincible. */
   takeDamage(raw) {
     if (this.invincible > 0) return 0;
@@ -89,12 +92,10 @@ export class Player {
     const r = this.radius;
     const flash = this.hitFlash > 0;
 
-    // Facing angle: rotate character toward movement direction
-    const angle = Math.atan2(this.facing.y, this.facing.x) + Math.PI / 2;
-
     ctx.save();
     ctx.translate(x, y);
-    ctx.rotate(angle);
+    // Side-view: flip horizontally when facing left
+    if (this.facingLeft) ctx.scale(-1, 1);
     drawSpaceMarine(ctx, r, flash);
     ctx.restore();
   }
@@ -125,7 +126,7 @@ export class Enemy {
     this.knockY      = 0;
     this.knockDecay  = 0;
     this.damageAccum = 0;
-    this.facingAngle = 0;  // radians, updated each frame
+    this.facingLeft  = false;  // true when moving left (toward player on left)
     return this;
   }
 
@@ -134,7 +135,7 @@ export class Enemy {
     const dx = player.x - this.x;
     const dy = player.y - this.y;
     const d  = Math.sqrt(dx*dx + dy*dy) || 1;
-    this.facingAngle = Math.atan2(dy, dx) + Math.PI / 2;  // face toward player
+    this.facingLeft = dx < 0;  // face toward player: left if player is left of enemy
     this.x += (dx/d) * this.speed * dt + this.knockX * dt;
     this.y += (dy/d) * this.speed * dt + this.knockY * dt;
     this.knockX *= Math.pow(0.05, dt);
@@ -160,7 +161,8 @@ export class Enemy {
 
     ctx.save();
     ctx.translate(x, y);
-    ctx.rotate(this.facingAngle);
+    // Side-view: flip horizontally when moving left (toward player on left)
+    if (this.facingLeft) ctx.scale(-1, 1);
 
     switch (id) {
       case 'hormagaunt': drawHormagaunt(ctx, r, flash);    break;

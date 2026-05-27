@@ -99,6 +99,9 @@ export class PowerSword extends BaseWeapon {
       );
     }
 
+    // Power sword hits destructibles in range
+    this.game.world.checkDestructiblesInRadius(player.x, player.y, range, this.game);
+
     // Damage all enemies within range — simple circle, iterate snapshot
     const hitSet = new Set();
     for (const e of [...enemies]) {

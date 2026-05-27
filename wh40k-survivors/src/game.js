@@ -16,6 +16,7 @@ import {
   drawGameOverScreen, drawMenuScreen, drawBossWarning,
   buildLevelUpOptions,
 } from './ui.js';
+import { WorldSystem } from './world.js';
 
 // ---- Tile colours for infinite tiled ground ----
 const TILE_COLORS = ['#141414', '#161616', '#181818', '#131313', '#151515'];
@@ -95,8 +96,9 @@ export class Game {
     // Alias for weapon code
     this.enemies = this.pools.enemies;
 
-    this.player     = new Player();
+    this.player      = new Player();
     this.waveManager = new WaveManager();
+    this.world       = new WorldSystem();
 
     // State
     this.state         = 'menu';    // menu | playing | paused | levelup | gameover
@@ -186,6 +188,7 @@ export class Game {
     Object.values(this.pools).forEach(p => p.releaseAll());
     this.player = new Player();
     this.waveManager = new WaveManager();
+    this.world.reset();
     this.gameTime = 0;
     this.bossWarningTimer = 0;
 
@@ -253,6 +256,10 @@ export class Game {
     this.player.update(dt, this.input);
     this.camera.follow(this.player);
 
+    // World: chunk streaming + item pickups + obstacle collision
+    this.world.update(dt, this.camera, this.player, this);
+    this.world.resolveCollisions(this.player);
+
     // Weapons (each weapon's update fires them)
     const activeEnemies = this.pools.enemies.active;
     for (const w of this.player.weapons) {
@@ -266,6 +273,7 @@ export class Game {
     this.pools.enemies.updateAll((e, idx) => {
       if (!e.active) { this.pools.enemies.release(e); return; }
       e.update(dt, this.player);
+      this.world.resolveCollisions(e);  // obstacle collision
 
       // Enemy → player collision
       const d = dist(e.x, e.y, this.player.x, this.player.y);
@@ -299,6 +307,22 @@ export class Game {
           this.pools.floatText.acquire(e.x, e.y - e.radius, Math.floor(p.damage).toString(), '#FFD700', 12);
           if (died) this.onEnemyDeath(e);
           if (p.pierce <= 0) { p.active = false; break; }
+        }
+      }
+      // Projectile → destructible collision
+      if (p.active) {
+        for (let di = this.world.destructibles.length - 1; di >= 0; di--) {
+          const dest = this.world.destructibles[di];
+          if (!dest.alive) continue;
+          if (dist(p.x, p.y, dest.x, dest.y) < p.radius + dest.radius) {
+            const died = dest.takeDamage();
+            if (died) {
+              this.world.hitDestructible(dest, this);
+              this.world.destructibles.splice(di, 1);
+            }
+            p.pierce--;
+            if (p.pierce <= 0) { p.active = false; break; }
+          }
         }
       }
       if (!p.active) this.pools.projectiles.release(p);
@@ -340,6 +364,8 @@ export class Game {
         }
         // Visual explosion
         this.pools.explosions.acquire(g.tx, g.ty, d.radius, '#FF8C00');
+        // Grenade hits destructibles
+        this.world.checkDestructiblesInRadius(g.tx, g.ty, d.radius, this);
         // Leave damage field
         this.pools.damageFields.acquire(g.tx, g.ty, d.radius, d.dps, d.fieldDur);
         this.pools.grenades.release(g);
@@ -417,11 +443,16 @@ export class Game {
     // --- Tiling floor ---
     this._drawFloor(ctx);
 
+    // --- World obstacles (behind everything) ---
+    this.world.drawBackground(ctx, this.camera);
+
     // --- Draw layers (back → front) ---
     // Damage fields
     for (const f of this.pools.damageFields.active) f.draw(ctx, this.camera);
     // XP gems
     for (const g of this.pools.xpGems.active)      g.draw(ctx, this.camera);
+    // World: destructibles, dropped items, map item beacons
+    this.world.drawForeground(ctx, this.camera);
     // Enemies
     for (const e of this.pools.enemies.active)      e.draw(ctx, this.camera);
     // Slashes
