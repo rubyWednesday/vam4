@@ -1,688 +1,760 @@
 // ============================================================
-// sprites.js — Side-view character sprites (facing RIGHT by default)
+// sprites.js  —  Character sprites inspired by Warhammer Survivors
 //
-// Perspective: 2D side-view, same as Vampire Survivors.
-// Characters are seen from the side/front — NOT top-down.
-// Caller flips with ctx.scale(-1,1) when character faces left.
-//
-// All functions draw centred at (0, 0).
-// Caller: ctx.save() → ctx.translate(sx,sy) → [ctx.scale(-1,1)] → draw → ctx.restore()
+// Style: chunky proportions · thick black outlines · flat colours
+// All sprites face RIGHT. Caller does ctx.scale(-1,1) for left.
+// Centred at (0,0). Call inside ctx.save() / ctx.restore().
 // ============================================================
 
+// ── Low-level helpers ──────────────────────────────────────────
 function el(ctx, cx, cy, rx, ry) {
-  ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, Math.max(rx, 0.5), Math.max(ry, 0.5), 0, 0, Math.PI * 2);
 }
-function rr(ctx, x, y, w, h, r) {
-  r = Math.min(r, w/2, h/2);
-  ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill();
+function rc(ctx, x, y, w, h, r = 3) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, r);
 }
-function tri(ctx, x1,y1, x2,y2, x3,y3) {
-  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x3,y3); ctx.closePath(); ctx.fill();
+function tri(ctx, x1, y1, x2, y2, x3, y3) {
+  ctx.beginPath();
+  ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineTo(x3, y3);
+  ctx.closePath();
 }
-function glow(ctx, color, blur, fn) {
-  ctx.shadowColor = color; ctx.shadowBlur = blur; fn(); ctx.shadowBlur = 0;
+
+// Fill + outline (gives pixel-art border look)
+function fo(ctx, fill, lw = 2, stroke = '#111') {
+  ctx.fillStyle   = fill;   ctx.fill();
+  ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke();
 }
+function f(ctx, fill) { ctx.fillStyle = fill; ctx.fill(); }
+function o(ctx, lw = 1.5, stroke = '#111') {
+  ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke();
+}
+
 function shadow(ctx, r) {
-  ctx.fillStyle = 'rgba(0,0,0,0.28)';
-  el(ctx, 0, r * 0.88, r * 0.7, r * 0.18);
+  el(ctx, 0, r * 0.88, r * 0.72, r * 0.2);
+  f(ctx, 'rgba(0,0,0,0.3)');
 }
 function hex(flash, normal) { return flash ? '#ffffff' : normal; }
 
+function glow(ctx, color, blur, drawFn) {
+  ctx.shadowColor = color;
+  ctx.shadowBlur  = blur;
+  drawFn();
+  ctx.shadowBlur  = 0;
+  ctx.shadowColor = 'transparent';
+}
+
 // ============================================================
-// SPACE MARINE  (r ≈ 14)
-// Side-view: iconic helmet profile, bolter raised, left pauldron dominates
-// Colours: Ultramarines deep blue, gold trim, green visor
+// SPACE MARINE  (player, r ≈ 14)
+// Ultramarines deep blue · huge pauldrons · green visor · bolter
 // ============================================================
 export function drawSpaceMarine(ctx, r, flash) {
-  const s = r * 1.55;   // visual scale slightly larger than collision
+  const s  = r * 1.7;
+  const lw = Math.max(1.5, s * 0.055);
+  const F  = (c) => hex(flash, c);
+
   shadow(ctx, r);
 
-  // ── Boots ──
-  ctx.fillStyle = hex(flash, '#0a0e1c');
-  rr(ctx,  s*0.02, s*0.72, s*0.26, s*0.18, 3);   // right boot
-  rr(ctx, -s*0.28, s*0.72, s*0.22, s*0.18, 3);   // left boot (behind)
+  // ── Legs ──────────────────────────────────────────────────
+  rc(ctx,  s * 0.04, s * 0.32, s * 0.28, s * 0.50, 4);
+  fo(ctx, F('#082070'), lw);
+  rc(ctx, -s * 0.30, s * 0.36, s * 0.22, s * 0.44, 4);
+  fo(ctx, F('#071a58'), lw);
 
-  // ── Legs ──
-  ctx.fillStyle = hex(flash, '#001a50');
-  rr(ctx,  s*0.04, s*0.32, s*0.24, s*0.44, 4);   // right leg (forward)
-  rr(ctx, -s*0.26, s*0.32, s*0.2,  s*0.4,  4);   // left leg  (behind)
+  // knee pads
+  if (!flash) {
+    rc(ctx,  s * 0.04, s * 0.44, s * 0.28, s * 0.09, 2);
+    fo(ctx, '#c9a227', 1);
+    rc(ctx, -s * 0.30, s * 0.46, s * 0.22, s * 0.08, 2);
+    fo(ctx, '#c9a227', 1);
+  }
 
-  // ── Leg knee pads ──
+  // boots
+  rc(ctx,  s * 0.02, s * 0.76, s * 0.32, s * 0.18, 4);
+  fo(ctx, F('#050e30'), lw);
+  rc(ctx, -s * 0.32, s * 0.76, s * 0.24, s * 0.15, 4);
+  fo(ctx, F('#050e30'), lw);
+
+  // ── Torso ─────────────────────────────────────────────────
+  rc(ctx, -s * 0.36, -s * 0.32, s * 0.72, s * 0.68, 6);
+  fo(ctx, F('#0a2fa8'), lw);
+
+  // chest aquila (gold eagle, simplified)
   if (!flash) {
     ctx.fillStyle = '#c9a227';
-    rr(ctx, s*0.04, s*0.42, s*0.24, s*0.07, 2);
-    rr(ctx,-s*0.26, s*0.42, s*0.20, s*0.06, 2);
+    // left wing
+    ctx.beginPath();
+    ctx.moveTo(-s*0.05, -s*0.08);
+    ctx.bezierCurveTo(-s*0.2, -s*0.2, -s*0.32, -s*0.1, -s*0.22, s*0.02);
+    ctx.closePath(); f(ctx, '#c9a227');
+    // right wing
+    ctx.beginPath();
+    ctx.moveTo( s*0.05, -s*0.08);
+    ctx.bezierCurveTo( s*0.2, -s*0.2,  s*0.32, -s*0.1,  s*0.22, s*0.02);
+    ctx.closePath(); f(ctx, '#c9a227');
+    // body of eagle
+    el(ctx, 0, -s*0.07, s*0.07, s*0.1); f(ctx, '#c9a227');
   }
 
-  // ── Torso / chest plate ──
-  ctx.fillStyle = hex(flash, '#0033aa');
-  rr(ctx, -s*0.38, -s*0.32, s*0.76, s*0.68, 7);
+  // ── Back arm (left, partially hidden behind torso) ────────
+  rc(ctx, -s * 0.46, -s * 0.26, s * 0.16, s * 0.44, 4);
+  fo(ctx, F('#071a58'), lw);
 
-  // ── Aquila (chest eagle) — T-shaped gold icon ──
+  // ── Front arm (right) ─────────────────────────────────────
+  rc(ctx,  s * 0.36, -s * 0.30, s * 0.22, s * 0.44, 5);
+  fo(ctx, F('#071a58'), lw);
+
+  // ── BOLTER ────────────────────────────────────────────────
+  // gun body
+  rc(ctx,  s * 0.30, -s * 0.40, s * 0.26, s * 0.22, 3);
+  fo(ctx, F('#151515'), lw * 0.8);
+  // barrel extending right
+  rc(ctx,  s * 0.52, -s * 0.34, s * 0.32, s * 0.10, 2);
+  fo(ctx, F('#0d0d0d'), lw * 0.7);
+  // magazine
+  rc(ctx,  s * 0.34, -s * 0.18, s * 0.12, s * 0.14, 2);
+  fo(ctx, F('#1a1a1a'), lw * 0.6);
   if (!flash) {
-    ctx.fillStyle = '#c9a227';
-    // Wings
-    tri(ctx, -s*0.22, -s*0.1,  -s*0.05, -s*0.22,  -s*0.05, s*0.0);
-    tri(ctx,  s*0.22, -s*0.1,   s*0.05, -s*0.22,   s*0.05, s*0.0);
-    el(ctx, 0, -s*0.11, s*0.07, s*0.1); // eagle body
+    // gold trim on gun
+    rc(ctx, s * 0.30, -s * 0.40, s * 0.06, s * 0.22, 2);
+    f(ctx, '#c9a227');
   }
 
-  // ── Left arm (behind body) — visible shoulder only ──
-  ctx.fillStyle = hex(flash, '#001f5e');
-  rr(ctx, -s*0.46, -s*0.28, s*0.18, s*0.4, 4);
+  // ── LEFT PAULDRON — the #1 iconic Space Marine feature ────
+  // large dome — extends far left
+  el(ctx, -s * 0.50, -s * 0.26, s * 0.30, s * 0.28);
+  fo(ctx, F('#0a2fa8'), lw * 1.2, hex(flash, '#c9a227'));
 
-  // ── Right arm — holds bolter, extends forward-right ──
-  ctx.fillStyle = hex(flash, '#001f5e');
-  rr(ctx, s*0.34, -s*0.3, s*0.28, s*0.44, 5);
-
-  // ── BOLTER — boxy gun body, barrel extends right ──
-  ctx.fillStyle = hex(flash, '#0d0d0d');
-  rr(ctx, s*0.38, -s*0.48, s*0.2, s*0.1, 2);    // barrel
-  rr(ctx, s*0.32, -s*0.38, s*0.3, s*0.22, 3);   // gun body
-  ctx.fillStyle = hex(flash, '#1a1a1a');
-  rr(ctx, s*0.44, -s*0.2, s*0.12, s*0.14, 2);   // magazine
+  // highlight stripe
   if (!flash) {
-    ctx.fillStyle = '#c9a227';
-    rr(ctx, s*0.34, -s*0.36, s*0.04, s*0.2, 1); // trigger guard stripe
+    ctx.globalAlpha = 0.4;
+    el(ctx, -s * 0.52, -s * 0.32, s * 0.14, s * 0.1); f(ctx, '#ffffff');
+    ctx.globalAlpha = 1.0;
+    // Ultramarines inverted-U symbol
+    ctx.strokeStyle = '#c9a227'; ctx.lineWidth = lw * 0.8;
+    ctx.beginPath();
+    ctx.arc(-s * 0.50, -s * 0.22, s * 0.15, Math.PI, 0, false);
+    ctx.stroke();
   }
 
-  // ── LEFT PAULDRON — dominant side feature, very large ──
-  ctx.fillStyle = hex(flash, '#0033aa');
-  el(ctx, -s*0.52, -s*0.3, s*0.28, s*0.26);
-  el(ctx, -s*0.5,  -s*0.28, s*0.24, s*0.22);  // slight dome highlight shape
+  // ── RIGHT PAULDRON (front-facing, smaller) ────────────────
+  el(ctx,  s * 0.42, -s * 0.26, s * 0.22, s * 0.20);
+  fo(ctx, F('#0a2fa8'), lw, hex(flash, '#c9a227'));
+
+  // ── HELMET ────────────────────────────────────────────────
+  // dome (round, sits high)
+  el(ctx, -s * 0.06, -s * 0.60, s * 0.26, s * 0.30);
+  fo(ctx, F('#0a2fa8'), lw);
+  // face plate (slightly forward)
+  rc(ctx, -s * 0.22, -s * 0.72, s * 0.34, s * 0.36, 5);
+  fo(ctx, F('#0930b0'), lw);
+  // gold helmet rim
   if (!flash) {
-    ctx.strokeStyle = '#c9a227'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.ellipse(-s*0.52, -s*0.3, s*0.28, s*0.26, 0,0,Math.PI*2); ctx.stroke();
-    // Ultramarines 'U' arc on pad
-    ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(-s*0.52, -s*0.26, s*0.14, 0, Math.PI, false); ctx.stroke();
+    ctx.strokeStyle = '#c9a227'; ctx.lineWidth = lw * 0.9;
+    ctx.beginPath();
+    ctx.arc(-s * 0.06, -s * 0.60, s * 0.30, -Math.PI * 0.85, Math.PI * 0.1);
+    ctx.stroke();
   }
 
-  // ── Right pauldron (smaller, front-facing side) ──
-  ctx.fillStyle = hex(flash, '#0033aa');
-  el(ctx, s*0.38, -s*0.3, s*0.22, s*0.2);
-  if (!flash) {
-    ctx.strokeStyle = '#c9a227'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.ellipse(s*0.38, -s*0.3, s*0.22, s*0.2, 0,0,Math.PI*2); ctx.stroke();
-  }
-
-  // ── HELMET — the profile silhouette, drawn last (on top) ──
-  // Back of helmet (round dome)
-  ctx.fillStyle = hex(flash, '#0033aa');
-  el(ctx, -s*0.08, -s*0.58, s*0.26, s*0.32);
-  // Front face plate (slightly flatter, like SM face mask)
-  ctx.fillStyle = hex(flash, '#0030a0');
-  rr(ctx, -s*0.2, -s*0.74, s*0.32, s*0.38, 5);
-  // Gold helmet rim line
-  if (!flash) {
-    ctx.strokeStyle = '#c9a227'; ctx.lineWidth = 1.8;
-    ctx.beginPath(); ctx.arc(-s*0.08, -s*0.58, s*0.32, -Math.PI*0.9, Math.PI*0.1); ctx.stroke();
-  }
-
-  // ── VISOR — horizontal glowing green slit (THE most iconic SM feature) ──
-  glow(ctx, '#00ff88', flash ? 0 : 12, () => {
-    ctx.fillStyle = hex(flash, '#00ff88');
-    rr(ctx, -s*0.18, -s*0.63, s*0.3, s*0.1, 3);
+  // ── VISOR — glowing green slit, THE most iconic feature ───
+  glow(ctx, '#00ff88', flash ? 0 : 14, () => {
+    rc(ctx, -s * 0.20, -s * 0.64, s * 0.32, s * 0.11, 3);
+    fo(ctx, F('#00ff88'), 1, '#004422');
   });
 
-  // Nose/chin section below visor
+  // chin/nose piece below visor
   if (!flash) {
-    ctx.fillStyle = '#001640';
-    rr(ctx, -s*0.16, -s*0.52, s*0.22, s*0.14, 3);
-    // Vent dots on chin
-    ctx.fillStyle = '#002060';
-    el(ctx, -s*0.1, -s*0.48, s*0.03, s*0.03);
-    el(ctx, -s*0.04,-s*0.48, s*0.03, s*0.03);
+    rc(ctx, -s * 0.17, -s * 0.52, s * 0.24, s * 0.15, 3);
+    fo(ctx, '#041640', 1);
+    // vent dots
+    ctx.fillStyle = '#0a2060';
+    el(ctx, -s*0.10, -s*0.47, s*0.03, s*0.03); f(ctx, '#0a2060');
+    el(ctx, -s*0.03, -s*0.47, s*0.03, s*0.03); f(ctx, '#0a2060');
   }
 }
 
 // ============================================================
 // HORMAGAUNT  (r ≈ 8)
-// Side-view: crouching alien posture, blade arm raised, tail curves back
-// Colours: deep purple chitin, bone blades, red eyes
+// Crouching alien · forward scythe blade · red eye · swept tail
+// Colours: deep purple chitin · bone-ivory blades
 // ============================================================
 export function drawHormagaunt(ctx, r, flash) {
-  const s = r * 1.9;
+  const s  = r * 2.0;
+  const lw = Math.max(1.2, s * 0.06);
+  const F  = (c) => hex(flash, c);
+
   shadow(ctx, r);
 
-  // ── Hind legs & tail ──
-  ctx.strokeStyle = hex(flash, '#2a0838');
-  ctx.lineWidth   = s * 0.1; ctx.lineCap = 'round';
-  // Back leg
-  ctx.beginPath(); ctx.moveTo(-s*0.12, s*0.22); ctx.lineTo(-s*0.34, s*0.6); ctx.lineTo(-s*0.18, s*0.84); ctx.stroke();
-  // Front leg
-  ctx.beginPath(); ctx.moveTo( s*0.1,  s*0.22); ctx.lineTo( s*0.28, s*0.6); ctx.lineTo( s*0.14, s*0.84); ctx.stroke();
-  // Talon tips
-  ctx.fillStyle = hex(flash, '#c4b870');
-  el(ctx, -s*0.18, s*0.84, s*0.07, s*0.04);
-  el(ctx,  s*0.14, s*0.84, s*0.07, s*0.04);
-
-  // ── Tail (sweeps back-and-up) ──
-  ctx.strokeStyle = hex(flash, '#4a1a60');
-  ctx.lineWidth = s*0.12;
+  // ── Tail (sweeps back and up) ──────────────────────────────
+  ctx.strokeStyle = F('#3d1050'); ctx.lineWidth = s * 0.13; ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(-s*0.14, s*0.12);
-  ctx.bezierCurveTo(-s*0.5, s*0.0, -s*0.72, -s*0.28, -s*0.6, -s*0.54);
+  ctx.moveTo(-s * 0.10, s * 0.12);
+  ctx.bezierCurveTo(-s * 0.50,  s * 0.00, -s * 0.68, -s * 0.32, -s * 0.54, -s * 0.60);
   ctx.stroke();
-  // Tail spike
-  ctx.fillStyle = hex(flash, '#c4b870');
-  tri(ctx, -s*0.6,-s*0.54, -s*0.52,-s*0.66, -s*0.46,-s*0.5);
+  // tail spike
+  tri(ctx, -s*0.58, -s*0.56, -s*0.48, -s*0.70, -s*0.42, -s*0.54);
+  fo(ctx, F('#c4b870'), 1);
 
-  // ── Abdomen (larger rear section) ──
-  ctx.fillStyle = hex(flash, '#3d1050');
-  el(ctx, -s*0.08, s*0.12, s*0.28, s*0.36);
-  ctx.fillStyle = hex(flash, '#5a2072');
-  el(ctx, -s*0.04, s*0.0, s*0.18, s*0.2);
-
-  // ── Thorax (chest, raised forward) ──
-  ctx.fillStyle = hex(flash, '#3d1050');
-  el(ctx, s*0.1, -s*0.1, s*0.24, s*0.28);
-
-  // ── Scythe arm — the forward-thrusting blade ──
-  // Upper arm
-  ctx.strokeStyle = hex(flash, '#3d1050');
-  ctx.lineWidth = s*0.14;
-  ctx.beginPath(); ctx.moveTo(s*0.18, -s*0.18); ctx.lineTo(s*0.6, -s*0.52); ctx.stroke();
-  // Scythe blade (crescent shape)
-  ctx.fillStyle = hex(flash, '#d4c870');
+  // ── Hind legs ─────────────────────────────────────────────
+  ctx.strokeStyle = F('#2a0838'); ctx.lineWidth = s * 0.11;
   ctx.beginPath();
-  ctx.moveTo(s*0.5, -s*0.62);
-  ctx.bezierCurveTo(s*0.82, -s*0.58, s*0.88, -s*0.22, s*0.68, -s*0.18);
-  ctx.bezierCurveTo(s*0.76, -s*0.28, s*0.72, -s*0.5,  s*0.56, -s*0.52);
-  ctx.closePath(); ctx.fill();
-  // Scythe tip highlight
+  ctx.moveTo(-s*0.10, s*0.22); ctx.lineTo(-s*0.30, s*0.60); ctx.lineTo(-s*0.16, s*0.82);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo( s*0.08, s*0.22); ctx.lineTo( s*0.26, s*0.58); ctx.lineTo( s*0.12, s*0.80);
+  ctx.stroke();
+  // toe claws
+  el(ctx, -s*0.16, s*0.83, s*0.08, s*0.04); fo(ctx, F('#c4b870'), 1);
+  el(ctx,  s*0.12, s*0.81, s*0.08, s*0.04); fo(ctx, F('#c4b870'), 1);
+
+  // ── Body (large oval abdomen) ──────────────────────────────
+  el(ctx, -s*0.04, s*0.10, s*0.30, s*0.36);
+  fo(ctx, F('#3d1050'), lw);
+  // highlight ridge
+  el(ctx, -s*0.02, s*0.04, s*0.18, s*0.20);
+  fo(ctx, F('#5a2072'), lw * 0.5);
+
+  // ── Thorax (chest, raised) ─────────────────────────────────
+  el(ctx, s*0.10, -s*0.12, s*0.22, s*0.26);
+  fo(ctx, F('#3d1050'), lw);
+
+  // ── Secondary small arm (folded) ──────────────────────────
+  ctx.strokeStyle = F('#3d1050'); ctx.lineWidth = s * 0.09;
+  ctx.beginPath();
+  ctx.moveTo(s*0.14, -s*0.16); ctx.lineTo(s*0.34, -s*0.38); ctx.stroke();
+  el(ctx, s*0.36, -s*0.40, s*0.08, s*0.06); fo(ctx, F('#c4b870'), 1);
+
+  // ── Main SCYTHE ARM — forward and dominant ─────────────────
+  ctx.strokeStyle = F('#3d1050'); ctx.lineWidth = s * 0.13;
+  ctx.beginPath();
+  ctx.moveTo(s*0.16, -s*0.20); ctx.lineTo(s*0.54, -s*0.56); ctx.stroke();
+  // scythe blade (large crescent)
+  ctx.beginPath();
+  ctx.moveTo(s*0.44, -s*0.68);
+  ctx.bezierCurveTo(s*0.86, -s*0.62, s*0.92, -s*0.18, s*0.66, -s*0.10);
+  ctx.bezierCurveTo(s*0.76, -s*0.28, s*0.72, -s*0.52, s*0.50, -s*0.56);
+  ctx.closePath();
+  fo(ctx, F('#d4c870'), lw * 0.8);
   if (!flash) {
-    ctx.strokeStyle = '#a8943a'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(s*0.52,-s*0.62); ctx.lineTo(s*0.84,-s*0.22); ctx.stroke();
+    // blade edge highlight
+    ctx.strokeStyle = '#a09040'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(s*0.46, -s*0.68); ctx.bezierCurveTo(s*0.88, -s*0.60, s*0.90, -s*0.20, s*0.66, -s*0.10);
+    ctx.stroke();
   }
 
-  // ── Second arm (folded, partially hidden) ──
-  ctx.strokeStyle = hex(flash, '#3d1050');
-  ctx.lineWidth = s*0.1;
-  ctx.beginPath(); ctx.moveTo(s*0.14, -s*0.14); ctx.lineTo(s*0.38, -s*0.36); ctx.stroke();
-  ctx.fillStyle = hex(flash, '#c4b870');
-  el(ctx, s*0.38, -s*0.36, s*0.1, s*0.07);
+  // ── Neck ──────────────────────────────────────────────────
+  rc(ctx, s*0.12, -s*0.32, s*0.12, s*0.22, 3);
+  fo(ctx, F('#3d1050'), lw * 0.7);
 
-  // ── Neck ──
-  ctx.fillStyle = hex(flash, '#3d1050');
-  rr(ctx, s*0.12, -s*0.3, s*0.12, s*0.22, 3);
-
-  // ── Head (elongated alien skull) ──
-  ctx.fillStyle = hex(flash, '#3d1050');
-  // Cranium dome (oval, tilted forward)
-  el(ctx, s*0.22, -s*0.5, s*0.14, s*0.2);
-  // Extended skull crest going back
+  // ── Head (elongated alien skull) ──────────────────────────
+  el(ctx, s*0.22, -s*0.52, s*0.16, s*0.22);
+  fo(ctx, F('#3d1050'), lw);
+  // skull crest (goes back)
   ctx.beginPath();
-  ctx.moveTo(s*0.12, -s*0.62);
-  ctx.bezierCurveTo(-s*0.1, -s*0.62, -s*0.12, -s*0.42, s*0.1, -s*0.38);
-  ctx.lineTo(s*0.12, -s*0.38);
-  ctx.closePath(); ctx.fill();
-  // Face snout (pointing right)
-  ctx.fillStyle = hex(flash, '#2a0838');
-  rr(ctx, s*0.26, -s*0.46, s*0.22, s*0.1, 2);
-  // Small teeth
+  ctx.moveTo(s*0.10, -s*0.66);
+  ctx.bezierCurveTo(-s*0.08, -s*0.64, -s*0.10, -s*0.44, s*0.10, -s*0.38);
+  ctx.lineTo(s*0.12, -s*0.38); ctx.closePath();
+  fo(ctx, F('#2a0838'), lw * 0.7);
+  // snout
+  rc(ctx, s*0.24, -s*0.48, s*0.22, s*0.10, 2);
+  fo(ctx, F('#2a0838'), lw * 0.6);
+  // tiny teeth
   if (!flash) {
     ctx.fillStyle = '#d0c070';
     for (let i = 0; i < 3; i++) {
-      tri(ctx, s*(0.28+i*0.06),-s*0.44, s*(0.31+i*0.06),-s*0.38, s*(0.34+i*0.06),-s*0.44);
+      tri(ctx,
+        s*(0.26+i*0.06), -s*0.45,
+        s*(0.30+i*0.06), -s*0.38,
+        s*(0.34+i*0.06), -s*0.45);
+      f(ctx, '#d0c070');
     }
   }
-  // GLOWING RED EYE
-  glow(ctx, '#ff0000', flash ? 0 : 8, () => {
-    ctx.fillStyle = hex(flash, '#ff1010');
-    el(ctx, s*0.18, -s*0.5, s*0.055, s*0.055);
+  // glowing red eye
+  glow(ctx, '#ff0000', flash ? 0 : 10, () => {
+    el(ctx, s*0.16, -s*0.52, s*0.06, s*0.06);
+    fo(ctx, F('#ff1010'), 1, '#880000');
   });
-  ctx.fillStyle = '#000';
-  el(ctx, s*0.18, -s*0.5, s*0.022, s*0.022);
+  el(ctx, s*0.16, -s*0.52, s*0.025, s*0.025); f(ctx, '#000');
 }
 
 // ============================================================
 // ORK BOY  (r ≈ 13)
-// Side-view: massive head dominates, choppa raised, hunched posture
-// Colours: Ork green, dark leather/metal, ivory tusks
+// HUGE head · choppa raised · bright green · hunched
 // ============================================================
 export function drawOrkBoy(ctx, r, flash) {
-  const s = r * 1.55;
+  const s  = r * 1.65;
+  const lw = Math.max(1.5, s * 0.058);
+  const F  = (c) => hex(flash, c);
+
   shadow(ctx, r);
 
-  // ── Boots ──
-  ctx.fillStyle = hex(flash, '#1a1a28');
-  rr(ctx,  s*0.04, s*0.68, s*0.3,  s*0.24, 4);
-  rr(ctx, -s*0.28, s*0.68, s*0.24, s*0.2,  4);
+  // ── Boots ─────────────────────────────────────────────────
+  rc(ctx,  s*0.06, s*0.68, s*0.32, s*0.24, 4);
+  fo(ctx, F('#111120'), lw);
+  rc(ctx, -s*0.30, s*0.68, s*0.26, s*0.20, 4);
+  fo(ctx, F('#111120'), lw);
 
-  // ── Legs (thick, short) ──
-  ctx.fillStyle = hex(flash, '#2a5018');
-  rr(ctx,  s*0.06, s*0.3, s*0.26, s*0.42, 4);
-  rr(ctx, -s*0.28, s*0.3, s*0.22, s*0.36, 4);
+  // ── Legs (thick) ──────────────────────────────────────────
+  rc(ctx,  s*0.06, s*0.30, s*0.28, s*0.42, 4);
+  fo(ctx, F('#2a5018'), lw);
+  rc(ctx, -s*0.30, s*0.30, s*0.24, s*0.36, 4);
+  fo(ctx, F('#243e14'), lw);
 
-  // ── Back arm (left arm, partially visible) ──
-  ctx.fillStyle = hex(flash, '#3a7020');
-  rr(ctx, -s*0.48, -s*0.2, s*0.22, s*0.44, 5);
-  // Fist
-  ctx.fillStyle = hex(flash, '#2a5818');
-  el(ctx, -s*0.37, s*0.22, s*0.14, s*0.12);
+  // ── Left arm (back, meaty fist) ───────────────────────────
+  rc(ctx, -s*0.50, -s*0.22, s*0.24, s*0.50, 5);
+  fo(ctx, F('#3a7020'), lw);
+  el(ctx, -s*0.38, s*0.26, s*0.14, s*0.12);
+  fo(ctx, F('#2e5c18'), lw * 0.7);
 
-  // ── Body / barrel chest ──
-  ctx.fillStyle = hex(flash, '#3a7020');
-  el(ctx, 0, s*0.06, s*0.42, s*0.44);
-  // Armour scraps on chest
-  ctx.fillStyle = hex(flash, '#2a2a38');
-  rr(ctx, -s*0.3, -s*0.18, s*0.38, s*0.22, 3);
-  rr(ctx,  s*0.04,-s*0.06, s*0.22, s*0.18, 3);
+  // ── Barrel chest ──────────────────────────────────────────
+  el(ctx, 0, s*0.06, s*0.44, s*0.46);
+  fo(ctx, F('#3a7020'), lw);
+  // scrap armour plate (dark)
+  rc(ctx, -s*0.32, -s*0.20, s*0.44, s*0.28, 3);
+  fo(ctx, F('#222232'), lw * 0.8);
+  rc(ctx, s*0.06, -s*0.08, s*0.24, s*0.20, 3);
+  fo(ctx, F('#1e1e2e'), lw * 0.7);
   if (!flash) {
-    // Rivets on armour scraps
-    ctx.fillStyle = '#6a6a7a';
-    el(ctx, -s*0.26,-s*0.1, s*0.04, s*0.04);
-    el(ctx, -s*0.1, -s*0.1, s*0.04, s*0.04);
-    el(ctx, s*0.2,  -s*0.02, s*0.04, s*0.04);
+    // rivets
+    ctx.fillStyle = '#6a6a8a';
+    el(ctx, -s*0.28, -s*0.10, s*0.04, s*0.04); f(ctx, '#6a6a8a');
+    el(ctx, -s*0.12, -s*0.10, s*0.04, s*0.04); f(ctx, '#6a6a8a');
+    el(ctx,  s*0.20, -s*0.02, s*0.04, s*0.04); f(ctx, '#6a6a8a');
   }
 
-  // ── Right arm + CHOPPA raised ──
-  ctx.fillStyle = hex(flash, '#3a7020');
-  rr(ctx, s*0.34, -s*0.38, s*0.28, s*0.52, 5);  // upper arm
-  rr(ctx, s*0.3,  -s*0.02, s*0.22, s*0.34, 4);  // lower arm / fist
+  // ── Right arm + CHOPPA raised ─────────────────────────────
+  rc(ctx, s*0.34, -s*0.42, s*0.28, s*0.52, 5);
+  fo(ctx, F('#3a7020'), lw);
+  rc(ctx, s*0.30, -s*0.02, s*0.24, s*0.34, 4);
+  fo(ctx, F('#2e5c18'), lw);
 
-  // CHOPPA BLADE — large rusty cleaver raised overhead
-  ctx.fillStyle = hex(flash, '#7a3a10');  // rust
+  // choppa blade — large rusty cleaver
   ctx.beginPath();
-  ctx.moveTo(s*0.36, -s*0.5);
-  ctx.lineTo(s*0.72, -s*0.82);
-  ctx.lineTo(s*0.82, -s*0.46);
-  ctx.lineTo(s*0.5,  -s*0.38);
-  ctx.closePath(); ctx.fill();
-  // Blade edge (shiny)
+  ctx.moveTo(s*0.38, -s*0.54);
+  ctx.lineTo(s*0.72, -s*0.90);
+  ctx.lineTo(s*0.86, -s*0.52);
+  ctx.lineTo(s*0.52, -s*0.40);
+  ctx.closePath();
+  fo(ctx, F('#7a3a10'), lw * 0.8);
+  // blade shiny edge
   if (!flash) {
-    ctx.fillStyle = '#b8b8c0';
     ctx.beginPath();
-    ctx.moveTo(s*0.7, -s*0.8);
-    ctx.lineTo(s*0.82,-s*0.48);
-    ctx.lineTo(s*0.78,-s*0.46);
-    ctx.lineTo(s*0.66,-s*0.78);
-    ctx.closePath(); ctx.fill();
-    // Handle wrap
-    ctx.fillStyle = '#3a2010';
-    rr(ctx, s*0.38, -s*0.5, s*0.08, s*0.26, 2);
-    // Handle band
-    ctx.fillStyle = '#8a6a40';
-    rr(ctx, s*0.36, -s*0.38, s*0.1, s*0.04, 1);
+    ctx.moveTo(s*0.70, -s*0.88); ctx.lineTo(s*0.86, -s*0.54);
+    ctx.lineTo(s*0.82, -s*0.52); ctx.lineTo(s*0.66, -s*0.86);
+    ctx.closePath(); f(ctx, '#c0c0c8');
+    // handle
+    rc(ctx, s*0.40, -s*0.54, s*0.08, s*0.28, 2);
+    fo(ctx, '#3a2010', 1);
+    rc(ctx, s*0.38, -s*0.40, s*0.10, s*0.05, 1);
+    f(ctx, '#8a6040');
   }
 
-  // ── THE HUGE ORK HEAD — side view, heavy brow ──
-  ctx.fillStyle = hex(flash, '#4a8a28');
-  // Main skull (big oval, slightly forward-leaning)
-  el(ctx, s*0.04, -s*0.58, s*0.38, s*0.38);
-  // Heavy brow ridge (horizontal overhang)
-  ctx.fillStyle = hex(flash, '#2a5018');
-  rr(ctx, -s*0.28, -s*0.82, s*0.58, s*0.14, 4);
-  // Ear (back of head lump)
-  ctx.fillStyle = hex(flash, '#3a7020');
-  el(ctx, -s*0.36, -s*0.58, s*0.1, s*0.12);
-  // Jaw / lower face
-  ctx.fillStyle = hex(flash, '#3e7822');
-  rr(ctx, -s*0.18, -s*0.38, s*0.5, s*0.22, 4);
-  // Nose (flat, wide)
+  // ── THE HUGE ORK HEAD ─────────────────────────────────────
+  // main skull (big, forward-leaning)
+  el(ctx, s*0.04, -s*0.60, s*0.40, s*0.40);
+  fo(ctx, F('#4a8a28'), lw * 1.1);
+  // heavy brow ridge
+  rc(ctx, -s*0.30, -s*0.86, s*0.62, s*0.16, 4);
+  fo(ctx, F('#2a5018'), lw);
+  // ear lump
+  el(ctx, -s*0.38, -s*0.60, s*0.10, s*0.13);
+  fo(ctx, F('#3a7020'), lw * 0.7);
+  // lower jaw
+  rc(ctx, -s*0.20, -s*0.42, s*0.54, s*0.26, 4);
+  fo(ctx, F('#3e7822'), lw);
+  // nostrils
   if (!flash) {
-    ctx.fillStyle = '#1e5010';
-    el(ctx, s*0.1, -s*0.48, s*0.09, s*0.06);
-    el(ctx, s*0.22,-s*0.48, s*0.09, s*0.06);
+    el(ctx, s*0.10, -s*0.52, s*0.08, s*0.06); f(ctx, '#1e5010');
+    el(ctx, s*0.24, -s*0.52, s*0.08, s*0.06); f(ctx, '#1e5010');
   }
-  // TUSK — lower, pointing forward-down
-  ctx.fillStyle = hex(flash, '#e0d090');
-  // Big right tusk
-  tri(ctx, s*0.22,-s*0.32, s*0.46,-s*0.06, s*0.28,-s*0.1);
-  // Smaller second tusk
-  tri(ctx, s*0.04,-s*0.3,  s*0.22,-s*0.08, s*0.12,-s*0.12);
+  // TUSKS — big, jutting forward
+  tri(ctx, s*0.22, -s*0.36, s*0.50, -s*0.04, s*0.28, -s*0.10);
+  fo(ctx, F('#e0d090'), lw * 0.8);
+  tri(ctx, s*0.04, -s*0.34, s*0.28, -s*0.08, s*0.14, -s*0.12);
+  fo(ctx, F('#d4c880'), lw * 0.7);
 
   // RED EYE
-  glow(ctx, '#ff3000', flash ? 0 : 5, () => {
-    ctx.fillStyle = hex(flash, '#ff3020');
-    el(ctx, s*0.12, -s*0.6, s*0.08, s*0.08);
+  glow(ctx, '#ff3000', flash ? 0 : 8, () => {
+    el(ctx, s*0.12, -s*0.62, s*0.10, s*0.10);
+    fo(ctx, F('#ff3020'), 1, '#881800');
   });
-  ctx.fillStyle = '#0a0a0a';
-  el(ctx, s*0.12, -s*0.6, s*0.03, s*0.03);
+  el(ctx, s*0.12, -s*0.62, s*0.04, s*0.04); f(ctx, '#050505');
 }
 
 // ============================================================
 // TYRANID WARRIOR  (r ≈ 17)
-// Side-view: tall, running posture, scythe arm raised forward
-// Colours: dark purple carapace, bone talons, cyan eyes
+// Tall · elongated Xenomorph head · huge scythe arm · running
+// Colours: dark purple carapace · bone talons · cyan eyes
 // ============================================================
 export function drawTyranidWarrior(ctx, r, flash) {
-  const s = r * 1.42;
+  const s  = r * 1.50;
+  const lw = Math.max(1.5, s * 0.055);
+  const F  = (c) => hex(flash, c);
+
   shadow(ctx, r);
 
-  // ── Back leg (digitigrade, hind) ──
-  ctx.strokeStyle = hex(flash, '#12081e');
-  ctx.lineWidth = s*0.13; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(-s*0.14, s*0.24); ctx.lineTo(-s*0.3, s*0.62); ctx.lineTo(-s*0.14, s*0.88); ctx.stroke();
-  ctx.fillStyle = hex(flash, '#c8b870');
-  el(ctx, -s*0.14, s*0.88, s*0.09, s*0.05);
+  // ── Back leg ──────────────────────────────────────────────
+  ctx.strokeStyle = F('#12081e'); ctx.lineWidth = s * 0.14; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-s*0.14, s*0.26); ctx.lineTo(-s*0.32, s*0.64); ctx.lineTo(-s*0.14, s*0.90);
+  ctx.stroke();
+  el(ctx, -s*0.14, s*0.91, s*0.10, s*0.06); fo(ctx, F('#c8b870'), 1);
 
-  // ── Front leg ──
-  ctx.beginPath(); ctx.moveTo(s*0.14, s*0.24); ctx.lineTo(s*0.3, s*0.62); ctx.lineTo(s*0.16, s*0.88); ctx.stroke();
-  ctx.fillStyle = hex(flash, '#c8b870');
-  el(ctx, s*0.16, s*0.88, s*0.09, s*0.05);
+  // ── Front leg ─────────────────────────────────────────────
+  ctx.beginPath();
+  ctx.moveTo(s*0.14, s*0.26); ctx.lineTo(s*0.32, s*0.64); ctx.lineTo(s*0.16, s*0.90);
+  ctx.stroke();
+  el(ctx, s*0.16, s*0.91, s*0.10, s*0.06); fo(ctx, F('#c8b870'), 1);
 
-  // ── Abdomen / lower body ──
-  ctx.fillStyle = hex(flash, '#2d1245');
-  el(ctx, -s*0.04, s*0.24, s*0.24, s*0.34);
-  // Segmented underside
-  ctx.fillStyle = hex(flash, '#5a1a30');
-  rr(ctx, -s*0.14, s*0.18, s*0.28, s*0.28, 4);
+  // ── Body ──────────────────────────────────────────────────
+  el(ctx, -s*0.02, s*0.26, s*0.26, s*0.36);
+  fo(ctx, F('#2d1245'), lw);
+  // fleshy underbelly
+  rc(ctx, -s*0.16, s*0.18, s*0.32, s*0.32, 4);
+  fo(ctx, F('#5a1a30'), lw * 0.7);
 
-  // ── Torso (leaning forward, aggressive stance) ──
-  ctx.fillStyle = hex(flash, '#1a0a28');
-  el(ctx, s*0.04, -s*0.1, s*0.3, s*0.4);
-  // Carapace highlight on back
-  ctx.fillStyle = hex(flash, '#4a2068');
-  el(ctx, -s*0.06, -s*0.18, s*0.2, s*0.26);
-  // Spine ridges
+  // torso
+  el(ctx, s*0.04, -s*0.10, s*0.28, s*0.42);
+  fo(ctx, F('#1a0a28'), lw);
+  // carapace plates on back
+  el(ctx, -s*0.06, -s*0.20, s*0.20, s*0.28);
+  fo(ctx, F('#4a2068'), lw * 0.7);
+  // spine bumps
   if (!flash) {
     ctx.fillStyle = '#6a3888';
     for (let i = 0; i < 4; i++) {
-      el(ctx, -s*0.1, -s*0.38 + i*s*0.14, s*0.06, s*0.06);
+      el(ctx, -s*0.10, -s*0.40 + i*s*0.14, s*0.07, s*0.07); f(ctx, '#6a3888');
     }
   }
 
-  // ── Back scythe arm (folded, one visible from this side) ──
-  ctx.strokeStyle = hex(flash, '#1a0a28');
-  ctx.lineWidth = s*0.1;
-  ctx.beginPath(); ctx.moveTo(-s*0.12, -s*0.16); ctx.lineTo(-s*0.42, -s*0.44); ctx.stroke();
-  ctx.fillStyle = hex(flash, '#c8b870');
+  // ── Back scythe arm (folded) ───────────────────────────────
+  ctx.strokeStyle = F('#1a0a28'); ctx.lineWidth = s * 0.10;
   ctx.beginPath();
-  ctx.moveTo(-s*0.32, -s*0.54);
-  ctx.bezierCurveTo(-s*0.68, -s*0.52, -s*0.72, -s*0.2, -s*0.52, -s*0.04);
-  ctx.bezierCurveTo(-s*0.58, -s*0.22, -s*0.54, -s*0.44, -s*0.3, -s*0.44);
-  ctx.closePath(); ctx.fill();
+  ctx.moveTo(-s*0.12, -s*0.18); ctx.lineTo(-s*0.40, -s*0.46); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-s*0.32, -s*0.56);
+  ctx.bezierCurveTo(-s*0.68, -s*0.54, -s*0.70, -s*0.20, -s*0.50, -s*0.04);
+  ctx.bezierCurveTo(-s*0.56, -s*0.24, -s*0.52, -s*0.46, -s*0.28, -s*0.46);
+  ctx.closePath();
+  fo(ctx, F('#c8b870'), lw * 0.7);
 
-  // ── MAIN SCYTHE ARM — forward, raised, dominant ──
-  ctx.strokeStyle = hex(flash, '#1a0a28');
-  ctx.lineWidth = s*0.14;
-  ctx.beginPath(); ctx.moveTo(s*0.18, -s*0.18); ctx.lineTo(s*0.54, -s*0.58); ctx.stroke();
-  // Scythe blade (large, sweeping)
-  ctx.fillStyle = hex(flash, '#d0c888');
+  // ── MAIN SCYTHE ARM ───────────────────────────────────────
+  ctx.strokeStyle = F('#1a0a28'); ctx.lineWidth = s * 0.14;
   ctx.beginPath();
-  ctx.moveTo(s*0.44, -s*0.7);
-  ctx.bezierCurveTo(s*0.88, -s*0.68, s*0.96, -s*0.24, s*0.72, -s*0.08);
-  ctx.bezierCurveTo(s*0.82, -s*0.3, s*0.76, -s*0.58, s*0.5, -s*0.6);
-  ctx.closePath(); ctx.fill();
-  // Vein/edge of blade
+  ctx.moveTo(s*0.18, -s*0.20); ctx.lineTo(s*0.54, -s*0.62); ctx.stroke();
+  // big blade
+  ctx.beginPath();
+  ctx.moveTo(s*0.44, -s*0.74);
+  ctx.bezierCurveTo(s*0.90, -s*0.70, s*0.98, -s*0.24, s*0.72, -s*0.08);
+  ctx.bezierCurveTo(s*0.82, -s*0.30, s*0.76, -s*0.60, s*0.50, -s*0.62);
+  ctx.closePath();
+  fo(ctx, F('#d0c888'), lw * 0.8);
   if (!flash) {
-    ctx.strokeStyle = '#907830'; ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.moveTo(s*0.48,-s*0.7); ctx.bezierCurveTo(s*0.86,-s*0.66, s*0.92,-s*0.28, s*0.72,-s*0.1); ctx.stroke();
+    ctx.strokeStyle = '#908030'; ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(s*0.48, -s*0.74);
+    ctx.bezierCurveTo(s*0.92, -s*0.68, s*0.94, -s*0.26, s*0.72, -s*0.10);
+    ctx.stroke();
   }
 
-  // ── Neck ──
-  ctx.fillStyle = hex(flash, '#1a0a28');
-  rr(ctx, s*0.08, -s*0.42, s*0.14, s*0.26, 3);
+  // ── Neck ──────────────────────────────────────────────────
+  rc(ctx, s*0.08, -s*0.44, s*0.14, s*0.28, 3);
+  fo(ctx, F('#1a0a28'), lw * 0.8);
 
-  // ── HEAD — elongated Xenomorph-style skull ──
-  ctx.fillStyle = hex(flash, '#1a0a28');
-  // Main head oval
-  el(ctx, s*0.18, -s*0.56, s*0.2, s*0.26);
-  // Elongated skull crest extending backwards
+  // ── HEAD — elongated Xenomorph skull ──────────────────────
+  el(ctx, s*0.18, -s*0.58, s*0.22, s*0.28);
+  fo(ctx, F('#1a0a28'), lw);
+  // skull crest extending back
   ctx.beginPath();
-  ctx.moveTo(s*0.04, -s*0.74);
-  ctx.bezierCurveTo(-s*0.22, -s*0.72, -s*0.28, -s*0.48, s*0.0, -s*0.38);
-  ctx.lineTo(s*0.04, -s*0.38); ctx.closePath(); ctx.fill();
-  // Upper jaw
-  ctx.fillStyle = hex(flash, '#2a1040');
-  rr(ctx, s*0.14, -s*0.42, s*0.3, s*0.1, 3);
-  // Lower jaw / mandibles
-  ctx.fillStyle = hex(flash, '#3a1828');
+  ctx.moveTo(s*0.04, -s*0.78);
+  ctx.bezierCurveTo(-s*0.22, -s*0.76, -s*0.26, -s*0.50, s*0.02, -s*0.40);
+  ctx.lineTo(s*0.04, -s*0.40); ctx.closePath();
+  fo(ctx, F('#12081e'), lw * 0.8);
+  // upper jaw
+  rc(ctx, s*0.12, -s*0.44, s*0.32, s*0.12, 3);
+  fo(ctx, F('#2a1040'), lw * 0.7);
+  // lower jaw / mandibles
   ctx.beginPath();
-  ctx.moveTo(s*0.16, -s*0.38); ctx.lineTo(s*0.44, -s*0.22); ctx.lineTo(s*0.38, -s*0.18); ctx.lineTo(s*0.12, -s*0.34);
-  ctx.closePath(); ctx.fill();
-  // Teeth
+  ctx.moveTo(s*0.14, -s*0.40); ctx.lineTo(s*0.46, -s*0.22);
+  ctx.lineTo(s*0.40, -s*0.18); ctx.lineTo(s*0.08, -s*0.36);
+  ctx.closePath();
+  fo(ctx, F('#3a1828'), lw * 0.7);
+  // teeth
   if (!flash) {
-    ctx.fillStyle = '#d0c080';
     for (let i = 0; i < 3; i++) {
-      tri(ctx, s*(0.2+i*0.07), -s*0.38, s*(0.24+i*0.07), -s*0.28, s*(0.28+i*0.07), -s*0.38);
+      tri(ctx,
+        s*(0.18+i*0.08), -s*0.40,
+        s*(0.22+i*0.08), -s*0.30,
+        s*(0.26+i*0.08), -s*0.40);
+      f(ctx, '#d0c080');
     }
   }
-  // CYAN GLOWING EYES
-  glow(ctx, '#00ccff', flash ? 0 : 12, () => {
-    ctx.fillStyle = hex(flash, '#00ddff');
-    el(ctx, s*0.1, -s*0.58, s*0.06, s*0.05);
+  // CYAN EYES
+  glow(ctx, '#00ccff', flash ? 0 : 14, () => {
+    el(ctx, s*0.10, -s*0.60, s*0.07, s*0.06);
+    fo(ctx, F('#00ddff'), 1, '#004488');
   });
-  ctx.fillStyle = '#000';
-  el(ctx, s*0.1, -s*0.58, s*0.02, s*0.02);
+  el(ctx, s*0.10, -s*0.60, s*0.03, s*0.03); f(ctx, '#000');
 }
 
 // ============================================================
 // CARNIFEX  boss  (r ≈ 34)
-// Side-view: massive quadruped, bone claws, open maw
-// Colours: obsidian #120820, violet carapace, bone claws
+// Massive quadruped · bone crushing-claws · open maw · boss aura
+// Colours: obsidian body · violet carapace · bone claws
 // ============================================================
 export function drawCarnifex(ctx, r, flash) {
-  const s = r * 1.28;
+  const s  = r * 1.32;
+  const lw = Math.max(2, s * 0.05);
+  const F  = (c) => hex(flash, c);
 
-  // Boss aura
+  // purple boss aura
   if (!flash) {
-    const p = 0.45 + 0.2*Math.sin(Date.now()*0.004);
-    const g = ctx.createRadialGradient(0,0,s*0.3, 0,0,s*1.5);
-    g.addColorStop(0,`rgba(120,0,200,${p*0.4})`); g.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle = g; el(ctx, 0, 0, s*1.5, s*1.5);
+    const p = 0.40 + 0.20 * Math.sin(Date.now() * 0.004);
+    const g = ctx.createRadialGradient(0, 0, s*0.3, 0, 0, s*1.5);
+    g.addColorStop(0, `rgba(130,0,210,${p*0.45})`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; el(ctx, 0, 0, s*1.5, s*1.5); f(ctx, g);
   }
   shadow(ctx, r);
 
-  // ── Two hind legs (back pair, thick columns) ──
-  ctx.fillStyle = hex(flash, '#1a0830');
-  ctx.lineWidth = s*0.24; ctx.strokeStyle = hex(flash,'#1a0830'); ctx.lineCap='round';
-  // Back hind leg
-  ctx.beginPath(); ctx.moveTo(-s*0.52, s*0.32); ctx.lineTo(-s*0.64, s*0.7); ctx.lineTo(-s*0.42, s*0.92); ctx.stroke();
-  // Front hind leg
-  ctx.beginPath(); ctx.moveTo(-s*0.12, s*0.38); ctx.lineTo(-s*0.14, s*0.76); ctx.lineTo( s*0.04, s*0.94); ctx.stroke();
-  ctx.fillStyle = hex(flash, '#c0a860');
-  el(ctx, -s*0.42, s*0.92, s*0.16, s*0.09);
-  el(ctx,  s*0.04, s*0.94, s*0.16, s*0.09);
+  // ── Hind legs ─────────────────────────────────────────────
+  ctx.strokeStyle = F('#1a0830'); ctx.lineWidth = s*0.22; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-s*0.52, s*0.32); ctx.lineTo(-s*0.66, s*0.72); ctx.lineTo(-s*0.44, s*0.94);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-s*0.12, s*0.38); ctx.lineTo(-s*0.16, s*0.78); ctx.lineTo( s*0.04, s*0.96);
+  ctx.stroke();
+  el(ctx, -s*0.44, s*0.95, s*0.18, s*0.10); fo(ctx, F('#c0a860'), lw*0.6);
+  el(ctx,  s*0.04, s*0.97, s*0.18, s*0.10); fo(ctx, F('#c0a860'), lw*0.6);
 
-  // ── MASSIVE BODY ──
-  ctx.fillStyle = hex(flash, '#120820');
-  el(ctx, -s*0.06, s*0.06, s*0.58, s*0.58);
-  // Carapace dome on top
-  ctx.fillStyle = hex(flash, '#8030c0');
-  el(ctx, -s*0.1, -s*0.18, s*0.44, s*0.38);
-  el(ctx, -s*0.08, -s*0.28, s*0.28, s*0.22);
-  // Segmented belly (fleshy)
-  ctx.fillStyle = hex(flash, '#5a1828');
-  rr(ctx, -s*0.26, s*0.06, s*0.36, s*0.48, 6);
-  // Spine spikes (row along back-top)
-  ctx.fillStyle = hex(flash, '#c8b060');
+  // ── Massive body ──────────────────────────────────────────
+  el(ctx, -s*0.06, s*0.08, s*0.62, s*0.60);
+  fo(ctx, F('#120820'), lw);
+  // carapace dome
+  el(ctx, -s*0.10, -s*0.20, s*0.48, s*0.42);
+  fo(ctx, F('#8030c0'), lw);
+  el(ctx, -s*0.08, -s*0.30, s*0.30, s*0.24);
+  fo(ctx, F('#a040d8'), lw * 0.7);
+  // fleshy belly
+  rc(ctx, -s*0.28, s*0.08, s*0.38, s*0.50, 6);
+  fo(ctx, F('#5a1828'), lw * 0.8);
+  // spine spikes
+  ctx.fillStyle = F('#c8b060');
   for (let i = 0; i < 5; i++) {
-    const bx = -s*0.52 + i*s*0.16;
-    const by = -s*0.46 - i*s*0.04;
-    tri(ctx, bx, by, bx-s*0.07, by+s*0.16, bx+s*0.07, by+s*0.16);
+    const bx = -s*0.54 + i*s*0.18;
+    const by = -s*0.48 - i*s*0.04;
+    tri(ctx, bx, by, bx-s*0.07, by+s*0.18, bx+s*0.07, by+s*0.18);
+    f(ctx, F('#c8b060'));
   }
 
-  // ── Front legs / CRUSHING CLAWS ──
-  // Right front leg arm
-  ctx.strokeStyle = hex(flash,'#1a0830'); ctx.lineWidth = s*0.2;
-  ctx.beginPath(); ctx.moveTo(s*0.36, s*0.12); ctx.lineTo(s*0.7, -s*0.22); ctx.stroke();
-  // Claw upper blade
-  ctx.fillStyle = hex(flash, '#c8b060');
+  // ── Front crushing-claw arm ───────────────────────────────
+  ctx.strokeStyle = F('#1a0830'); ctx.lineWidth = s * 0.20;
   ctx.beginPath();
-  ctx.moveTo(s*0.62, -s*0.38);
-  ctx.bezierCurveTo(s*0.98,-s*0.42, s*1.06,-s*0.08, s*0.86, s*0.08);
-  ctx.bezierCurveTo(s*0.92,-s*0.1, s*0.88,-s*0.34, s*0.66,-s*0.3);
-  ctx.closePath(); ctx.fill();
-  // Claw lower blade
-  ctx.fillStyle = hex(flash, '#b0a050');
+  ctx.moveTo(s*0.36, s*0.12); ctx.lineTo(s*0.72, -s*0.24); ctx.stroke();
+  // upper claw blade
   ctx.beginPath();
-  ctx.moveTo(s*0.64, -s*0.3);
-  ctx.bezierCurveTo(s*0.88,-s*0.2, s*0.94, s*0.08, s*0.76, s*0.18);
-  ctx.bezierCurveTo(s*0.86, s*0.04, s*0.8, -s*0.18, s*0.66,-s*0.2);
-  ctx.closePath(); ctx.fill();
-  // Left front leg (partially visible)
-  ctx.strokeStyle = hex(flash,'#120820'); ctx.lineWidth = s*0.16;
-  ctx.beginPath(); ctx.moveTo(s*0.22, s*0.16); ctx.lineTo(s*0.5, -s*0.1); ctx.stroke();
+  ctx.moveTo(s*0.62, -s*0.40);
+  ctx.bezierCurveTo(s*1.02, -s*0.44, s*1.10, -s*0.08, s*0.88, s*0.10);
+  ctx.bezierCurveTo(s*0.94, -s*0.10, s*0.90, -s*0.36, s*0.66, -s*0.32);
+  ctx.closePath();
+  fo(ctx, F('#c8b060'), lw);
+  // lower claw blade
+  ctx.beginPath();
+  ctx.moveTo(s*0.64, -s*0.32);
+  ctx.bezierCurveTo(s*0.90, -s*0.22, s*0.96, s*0.08, s*0.78, s*0.20);
+  ctx.bezierCurveTo(s*0.88, s*0.06, s*0.82, -s*0.18, s*0.66, -s*0.20);
+  ctx.closePath();
+  fo(ctx, F('#b0a050'), lw * 0.8);
+  // secondary front leg
+  ctx.strokeStyle = F('#120820'); ctx.lineWidth = s*0.16;
+  ctx.beginPath();
+  ctx.moveTo(s*0.22, s*0.16); ctx.lineTo(s*0.52, -s*0.12); ctx.stroke();
 
-  // ── TYRANID HEAD — side profile with open maw ──
-  ctx.fillStyle = hex(flash, '#120820');
-  el(ctx, s*0.26, -s*0.44, s*0.34, s*0.3);
-  // Upper skull plate
-  ctx.fillStyle = hex(flash, '#2a1045');
-  el(ctx, s*0.18, -s*0.54, s*0.28, s*0.2);
-  // OPEN JAW (lower jaw swings down)
-  ctx.fillStyle = hex(flash, '#3a1828');
+  // ── Head — open maw ───────────────────────────────────────
+  el(ctx, s*0.26, -s*0.46, s*0.36, s*0.32);
+  fo(ctx, F('#120820'), lw);
+  el(ctx, s*0.18, -s*0.56, s*0.28, s*0.22);
+  fo(ctx, F('#2a1045'), lw * 0.8);
+  // open jaw
   ctx.beginPath();
-  ctx.moveTo(s*0.0, -s*0.38); ctx.lineTo(s*0.52,-s*0.38);
-  ctx.bezierCurveTo(s*0.6,-s*0.18, s*0.48,-s*0.06, s*0.2,-s*0.1);
-  ctx.closePath(); ctx.fill();
-  // Teeth rows
-  ctx.fillStyle = hex(flash, '#d0c070');
-  for (let i = 0; i < 5; i++) {
-    tri(ctx, s*(0.06+i*0.09),-s*0.37, s*(0.1+i*0.09),-s*0.26, s*(0.14+i*0.09),-s*0.37);
-    tri(ctx, s*(0.06+i*0.09),-s*0.12, s*(0.1+i*0.09),-s*0.22, s*(0.14+i*0.09),-s*0.12);
+  ctx.moveTo(s*0.02, -s*0.40); ctx.lineTo(s*0.54, -s*0.38);
+  ctx.bezierCurveTo(s*0.62, -s*0.18, s*0.50, -s*0.04, s*0.20, -s*0.08);
+  ctx.closePath();
+  fo(ctx, F('#3a1828'), lw * 0.8);
+  // teeth rows (top + bottom)
+  if (!flash) {
+    ctx.fillStyle = '#d0c070';
+    for (let i = 0; i < 5; i++) {
+      tri(ctx, s*(0.06+i*0.09),-s*0.39, s*(0.10+i*0.09),-s*0.28, s*(0.14+i*0.09),-s*0.39);
+      f(ctx, '#d0c070');
+      tri(ctx, s*(0.06+i*0.09),-s*0.09, s*(0.10+i*0.09),-s*0.20, s*(0.14+i*0.09),-s*0.09);
+      f(ctx, '#d0c070');
+    }
   }
-  // Skull crest (back of head extending up-back)
-  ctx.fillStyle = hex(flash, '#120820');
+  // skull crest
   ctx.beginPath();
-  ctx.moveTo(s*0.0, -s*0.72);
-  ctx.bezierCurveTo(-s*0.16,-s*0.7, -s*0.24,-s*0.48, s*0.0,-s*0.38);
-  ctx.lineTo(s*0.06,-s*0.38); ctx.closePath(); ctx.fill();
-  // BURNING RED EYES
-  glow(ctx, '#ff2000', flash ? 0 : 16, () => {
-    ctx.fillStyle = hex(flash, '#ff2000');
-    el(ctx, s*0.12, -s*0.5, s*0.09, s*0.09);
+  ctx.moveTo(s*0.02, -s*0.76);
+  ctx.bezierCurveTo(-s*0.16, -s*0.74, -s*0.24, -s*0.50, s*0.02, -s*0.40);
+  ctx.lineTo(s*0.06, -s*0.40); ctx.closePath();
+  fo(ctx, F('#120820'), lw * 0.8);
+  // burning eyes
+  glow(ctx, '#ff2000', flash ? 0 : 18, () => {
+    el(ctx, s*0.12, -s*0.52, s*0.10, s*0.10);
+    fo(ctx, F('#ff2000'), 1, '#880000');
   });
-  ctx.fillStyle = '#300';
-  el(ctx, s*0.12, -s*0.5, s*0.04, s*0.04);
+  el(ctx, s*0.12, -s*0.52, s*0.04, s*0.04); f(ctx, '#300');
 }
 
 // ============================================================
 // WARBOSS  boss  (r ≈ 38)
-// Side-view: enormous Ork, power klaw raised, horned helmet, tusks
-// Colours: dark Ork green, heavy iron armour, glowing power klaw
+// Enormous Ork · power klaw · horned mega-armour · glowing eyes
+// Colours: dark green · iron mega-armour · yellow hazard · power klaw blue
 // ============================================================
 export function drawWarboss(ctx, r, flash) {
-  const s = r * 1.22;
+  const s  = r * 1.26;
+  const lw = Math.max(2, s * 0.05);
+  const F  = (c) => hex(flash, c);
 
-  // Green boss aura
+  // green boss aura
   if (!flash) {
-    const p = 0.45 + 0.2*Math.sin(Date.now()*0.004);
-    const g = ctx.createRadialGradient(0,0,s*0.3, 0,0,s*1.45);
-    g.addColorStop(0,`rgba(60,140,10,${p*0.4})`); g.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle = g; el(ctx, 0, 0, s*1.45, s*1.45);
+    const p = 0.40 + 0.20 * Math.sin(Date.now() * 0.004);
+    const g = ctx.createRadialGradient(0, 0, s*0.3, 0, 0, s*1.48);
+    g.addColorStop(0, `rgba(60,140,10,${p*0.45})`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; el(ctx, 0, 0, s*1.48, s*1.48); f(ctx, g);
   }
   shadow(ctx, r);
 
-  // ── Boots ──
-  ctx.fillStyle = hex(flash, '#1a1a28');
-  rr(ctx,  s*0.06, s*0.7, s*0.38, s*0.28, 5);
-  rr(ctx, -s*0.36, s*0.7, s*0.3,  s*0.22, 5);
+  // ── Boots ─────────────────────────────────────────────────
+  rc(ctx,  s*0.08, s*0.72, s*0.40, s*0.28, 5);
+  fo(ctx, F('#111120'), lw);
+  rc(ctx, -s*0.40, s*0.72, s*0.32, s*0.24, 5);
+  fo(ctx, F('#111120'), lw);
 
-  // ── Legs ──
-  ctx.fillStyle = hex(flash, '#1e4a0a');
-  rr(ctx,  s*0.08, s*0.28, s*0.34, s*0.46, 5);
-  rr(ctx, -s*0.36, s*0.28, s*0.28, s*0.38, 5);
+  // ── Legs ──────────────────────────────────────────────────
+  rc(ctx,  s*0.10, s*0.28, s*0.36, s*0.48, 5);
+  fo(ctx, F('#1e4a0a'), lw);
+  rc(ctx, -s*0.40, s*0.28, s*0.30, s*0.42, 5);
+  fo(ctx, F('#1a3e08'), lw);
 
-  // ── Left arm (back, meaty fist) ──
-  ctx.fillStyle = hex(flash, '#2a6010');
-  rr(ctx, -s*0.52, -s*0.22, s*0.24, s*0.54, 6);
-  // Fist / knuckle plates
-  ctx.fillStyle = hex(flash, '#202030');
-  rr(ctx, -s*0.52, s*0.22, s*0.24, s*0.16, 3);
+  // ── Left arm (meaty, back) ────────────────────────────────
+  rc(ctx, -s*0.54, -s*0.24, s*0.26, s*0.58, 6);
+  fo(ctx, F('#2a6010'), lw);
+  // knuckle plate
+  rc(ctx, -s*0.54, s*0.24, s*0.26, s*0.18, 3);
+  fo(ctx, F('#1e1e2e'), lw * 0.8);
   if (!flash) {
-    ctx.fillStyle = '#8080a0';
-    for (let i=0;i<3;i++) el(ctx, -s*0.48+i*s*0.08, s*0.26, s*0.04, s*0.04);
-  }
-
-  // ── TORSO — massive, armour-plated ──
-  ctx.fillStyle = hex(flash, '#2a6010');
-  el(ctx, 0, s*0.04, s*0.52, s*0.54);
-  // Front armour plate (covers most of chest)
-  ctx.fillStyle = hex(flash, '#202030');
-  rr(ctx, -s*0.38, -s*0.24, s*0.76, s*0.48, 6);
-  // Yellow hazard stripes on armour
-  if (!flash) {
-    ctx.fillStyle = '#d4a000';
+    ctx.fillStyle = '#808098';
     for (let i = 0; i < 3; i++) {
-      ctx.save(); ctx.translate(-s*0.3 + i*s*0.26, -s*0.2);
-      ctx.rotate(0.5);
-      rr(ctx, 0, 0, s*0.14, s*0.32, 2);
-      ctx.restore();
+      el(ctx, -s*0.50+i*s*0.09, s*0.30, s*0.04, s*0.04); f(ctx, '#808098');
     }
-    // Dark stripes over yellow (hazard pattern)
-    ctx.fillStyle = '#181828';
-    for (let i = 0; i < 3; i++) {
-      ctx.save(); ctx.translate(-s*0.3 + i*s*0.26 + s*0.04, -s*0.2);
-      ctx.rotate(0.5);
-      rr(ctx, 0, 0, s*0.07, s*0.32, 2);
-      ctx.restore();
-    }
-    // Rivets
-    ctx.fillStyle = '#8888a0';
-    el(ctx, -s*0.34, -s*0.2, s*0.04, s*0.04);
-    el(ctx,  s*0.34, -s*0.2, s*0.04, s*0.04);
-    el(ctx, -s*0.34,  s*0.2, s*0.04, s*0.04);
-    el(ctx,  s*0.34,  s*0.2, s*0.04, s*0.04);
   }
 
-  // ── POWER KLAW ARM — THE Warboss signature ──
-  // Heavy mechanical arm casing
-  ctx.fillStyle = hex(flash, '#282838');
-  rr(ctx, s*0.44, -s*0.44, s*0.56, s*0.64, 8);
-  // Hydraulics visible
+  // ── Massive torso ─────────────────────────────────────────
+  el(ctx, 0, s*0.04, s*0.54, s*0.58);
+  fo(ctx, F('#2a6010'), lw);
+  // mega-armour front plate
+  rc(ctx, -s*0.42, -s*0.26, s*0.84, s*0.52, 7);
+  fo(ctx, F('#1e1e2e'), lw);
+  // yellow + black hazard stripes
   if (!flash) {
-    ctx.fillStyle = '#d4a000'; rr(ctx, s*0.48, -s*0.4, s*0.48, s*0.1, 3);
-    ctx.fillStyle = '#aa2200'; rr(ctx, s*0.52, -s*0.26, s*0.4, s*0.08, 2);
-    ctx.fillStyle = '#505060'; rr(ctx, s*0.48, -s*0.12, s*0.48, s*0.08, 2);
-  }
-  // KLAW FINGERS — three large mechanical talons
-  ctx.fillStyle = hex(flash, '#9090b0');
-  for (let i = 0; i < 3; i++) {
-    const ky = -s*0.54 + i*s*0.18;
+    ctx.save();
     ctx.beginPath();
-    ctx.moveTo(s*0.98, ky);
-    ctx.lineTo(s*1.28, ky+s*0.06);
-    ctx.lineTo(s*1.22, ky+s*0.14);
-    ctx.lineTo(s*0.96, ky+s*0.1);
-    ctx.closePath(); ctx.fill();
-    // Claw tip glow (power field)
+    ctx.rect(-s*0.42, -s*0.26, s*0.84, s*0.52);
+    ctx.clip();
+    ctx.fillStyle = '#d4a000';
+    for (let i = 0; i < 6; i++) {
+      ctx.save();
+      ctx.translate(-s*0.52 + i*s*0.24, -s*0.30);
+      ctx.rotate(0.52);
+      rc(ctx, 0, 0, s*0.14, s*0.60, 0); f(ctx, '#d4a000');
+      ctx.restore();
+    }
+    ctx.fillStyle = '#181828';
+    for (let i = 0; i < 6; i++) {
+      ctx.save();
+      ctx.translate(-s*0.52 + i*s*0.24 + s*0.06, -s*0.30);
+      ctx.rotate(0.52);
+      rc(ctx, 0, 0, s*0.08, s*0.60, 0); f(ctx, '#181828');
+      ctx.restore();
+    }
+    ctx.restore();
+    // armour edge outline
+    rc(ctx, -s*0.42, -s*0.26, s*0.84, s*0.52, 7);
+    o(ctx, lw, '#444');
+    // rivets
+    ctx.fillStyle = '#8888a0';
+    [[-s*0.38,-s*0.22],[s*0.38,-s*0.22],[-s*0.38,s*0.22],[s*0.38,s*0.22]].forEach(([x,y])=>{
+      el(ctx, x, y, s*0.05, s*0.05); f(ctx, '#8888a0');
+    });
+  }
+
+  // ── POWER KLAW ARM ────────────────────────────────────────
+  // heavy mechanical arm housing
+  rc(ctx, s*0.46, -s*0.48, s*0.58, s*0.66, 9);
+  fo(ctx, F('#252535'), lw);
+  // hydraulics
+  if (!flash) {
+    rc(ctx, s*0.50, -s*0.44, s*0.50, s*0.11, 3); f(ctx, '#d4a000');
+    rc(ctx, s*0.54, -s*0.28, s*0.42, s*0.09, 2); f(ctx, '#aa2200');
+    rc(ctx, s*0.50, -s*0.14, s*0.50, s*0.09, 2); f(ctx, '#505060');
+  }
+  // THREE KLAW FINGERS
+  for (let i = 0; i < 3; i++) {
+    const ky = -s*0.58 + i*s*0.20;
+    ctx.beginPath();
+    ctx.moveTo(s*1.00, ky);
+    ctx.lineTo(s*1.34, ky + s*0.07);
+    ctx.lineTo(s*1.28, ky + s*0.16);
+    ctx.lineTo(s*0.98, ky + s*0.12);
+    ctx.closePath();
+    fo(ctx, F('#9090b0'), lw * 0.7);
+    // power field glow on tip
     if (!flash) {
-      glow(ctx, '#4488ff', 6, () => {
-        ctx.fillStyle = '#aaccff';
-        el(ctx, s*1.26, ky+s*0.08, s*0.04, s*0.04);
+      glow(ctx, '#4488ff', 8, () => {
+        el(ctx, s*1.32, ky + s*0.09, s*0.05, s*0.05);
+        f(ctx, '#aaccff');
       });
     }
   }
 
-  // ── HEAD — enormous, horned war helmet ──
-  // Helmet body
-  ctx.fillStyle = hex(flash, '#1e1e2e');
-  rr(ctx, -s*0.38, -s*0.88, s*0.8, s*0.68, 9);
-  // HORNS on helmet — unmistakeable Warboss look
-  ctx.fillStyle = hex(flash, '#383848');
-  tri(ctx, -s*0.36,-s*0.88, -s*0.54,-s*1.24, -s*0.16,-s*0.88);
-  tri(ctx,  s*0.26,-s*0.88,  s*0.44,-s*1.18,  s*0.06,-s*0.88);
-  // Skull decoration on helmet
+  // ── HEAD — enormous with horned mega-helmet ────────────────
+  rc(ctx, -s*0.40, -s*0.92, s*0.88, s*0.72, 10);
+  fo(ctx, F('#1a1a2a'), lw);
+  // HORNS (unmistakeable Warboss silhouette)
+  tri(ctx, -s*0.38, -s*0.92, -s*0.58, -s*1.30, -s*0.14, -s*0.92);
+  fo(ctx, F('#2e2e42'), lw);
+  tri(ctx,  s*0.28, -s*0.92,  s*0.48, -s*1.24,  s*0.04, -s*0.92);
+  fo(ctx, F('#2e2e42'), lw);
+  // skull icon on helmet (gold)
   if (!flash) {
-    ctx.fillStyle = '#c8b060';
-    el(ctx, s*0.04, -s*0.62, s*0.12, s*0.12);
-    ctx.fillStyle = '#181828';
-    el(ctx, -s*0.04, -s*0.58, s*0.04, s*0.05); el(ctx, s*0.1, -s*0.58, s*0.04, s*0.05);
-    rr(ctx, -s*0.05, -s*0.52, s*0.14, s*0.04, 2);
+    el(ctx, s*0.04, -s*0.66, s*0.14, s*0.14); fo(ctx, '#c8b060', 1);
+    el(ctx, -s*0.04, -s*0.62, s*0.05, s*0.06); f(ctx, '#181828');
+    el(ctx,  s*0.10, -s*0.62, s*0.05, s*0.06); f(ctx, '#181828');
+    rc(ctx, -s*0.05, -s*0.55, s*0.14, s*0.04, 2); f(ctx, '#181828');
   }
-  // Green skin face below helmet visor line
-  ctx.fillStyle = hex(flash, '#3a7020');
-  rr(ctx, -s*0.28, -s*0.52, s*0.7, s*0.38, 5);
-  // Heavy brow
-  ctx.fillStyle = hex(flash, '#1e4a0a');
-  rr(ctx, -s*0.28, -s*0.56, s*0.7, s*0.12, 4);
-
-  // TUSKS — large, jutting forward
-  ctx.fillStyle = hex(flash, '#e0d090');
-  tri(ctx, s*0.2,-s*0.36,  s*0.46,-s*0.08, s*0.26,-s*0.12);  // right tusk
-  tri(ctx, s*0.0,-s*0.34,  s*0.24,-s*0.1,  s*0.1, -s*0.14);  // second
-
-  // EYES — burning orange-red
-  glow(ctx, '#ff4000', flash ? 0 : 14, () => {
-    ctx.fillStyle = hex(flash, '#ff4000');
-    el(ctx, s*0.16, -s*0.44, s*0.1, s*0.1);
-    el(ctx, -s*0.08,-s*0.44, s*0.09, s*0.09);
+  // green skin face
+  rc(ctx, -s*0.30, -s*0.56, s*0.74, s*0.42, 5);
+  fo(ctx, F('#3a7020'), lw);
+  // heavy brow
+  rc(ctx, -s*0.30, -s*0.60, s*0.74, s*0.13, 4);
+  fo(ctx, F('#1e4a0a'), lw);
+  // TUSKS
+  tri(ctx,  s*0.22, -s*0.38,  s*0.50, -s*0.08,  s*0.28, -s*0.12);
+  fo(ctx, F('#e0d090'), lw * 0.8);
+  tri(ctx,  s*0.02, -s*0.36,  s*0.28, -s*0.08,  s*0.12, -s*0.14);
+  fo(ctx, F('#d4c880'), lw * 0.8);
+  // BURNING ORANGE-RED EYES
+  glow(ctx, '#ff4000', flash ? 0 : 16, () => {
+    el(ctx, s*0.16, -s*0.46, s*0.11, s*0.11);
+    fo(ctx, F('#ff4000'), 1, '#881800');
+    el(ctx, -s*0.08, -s*0.46, s*0.10, s*0.10);
+    fo(ctx, F('#ff3800'), 1, '#881800');
   });
-  ctx.fillStyle = '#0a0000';
-  el(ctx, s*0.16, -s*0.44, s*0.04, s*0.04);
-  el(ctx, -s*0.08,-s*0.44, s*0.04, s*0.04);
+  el(ctx, s*0.16, -s*0.46, s*0.04, s*0.04); f(ctx, '#0a0000');
+  el(ctx, -s*0.08,-s*0.46, s*0.04, s*0.04); f(ctx, '#0a0000');
 }
