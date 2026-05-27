@@ -1,651 +1,588 @@
 // ============================================================
-// sprites.js — Canvas 2D character drawing functions
-// All functions draw centred at (0, 0) in local space.
-// Caller: ctx.save() → ctx.translate(sx, sy) → ctx.rotate(angle) → draw → ctx.restore()
+// sprites.js — Bold, readable character sprites for WH40K Survivors
+//
+// Design principle: at small canvas sizes, SILHOUETTE > detail.
+// Each character has 1-2 iconic features that make it instantly
+// recognisable, drawn in WH40K lore-accurate colours.
+//
+// All functions draw centred at (0,0).
+// Caller: ctx.save() → ctx.translate(sx,sy) → [optional flip] → draw → ctx.restore()
 // ============================================================
 
-// ---- tiny helpers ----
+/* ── colour helper ── */
+function hex(flash, normal) { return flash ? '#ffffff' : normal; }
+
+/* ── shape helpers ── */
 function el(ctx, cx, cy, rx, ry) {
   ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
 }
-function els(ctx, cx, cy, rx, ry, lw) {
-  ctx.lineWidth = lw;
-  ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
+function arc(ctx, cx, cy, r, a0, a1, cc) {
+  ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1, cc); ctx.fill();
 }
-function fr(ctx, x, y, w, h) { ctx.fillRect(x, y, w, h); }
 function rr(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, Math.min(r, w / 2, h / 2));
-  ctx.fill();
+  r = Math.min(r, w / 2, h / 2);
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill();
+}
+function line(ctx, x1, y1, x2, y2, w) {
+  ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+}
+function glow(ctx, color, blur, fn) {
+  ctx.shadowColor = color; ctx.shadowBlur = blur; fn(); ctx.shadowBlur = 0;
 }
 function shadow(ctx, r) {
-  ctx.fillStyle = 'rgba(0,0,0,0.28)';
-  el(ctx, 0, r * 0.82, r * 0.75, r * 0.22);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  el(ctx, 0, r * 0.85, r * 0.8, r * 0.22);
 }
 
 // ============================================================
-// SPACE MARINE — Ultramarines-style power armour (r ≈ 14)
-// Drawn facing "up" (negative-y); caller rotates toward movement dir.
+// SPACE MARINE  (r ≈ 14)
+// Iconic features: massive round pauldrons + glowing visor slit
+// Colours: Ultramarines blue #0033aa, gold #c9a227, visor #00ff88
+// Drawn facing UP; caller rotates toward movement direction.
 // ============================================================
 export function drawSpaceMarine(ctx, r, flash) {
-  const f = flash;
-  const C = {
-    armor:  f ? '#ffffff' : '#1e3a6e',   // Ultramarines blue
-    dark:   f ? '#cccccc' : '#0d1f3a',   // dark recesses
-    gold:   f ? '#ffffff' : '#c9a227',   // gold trim
-    visor:  f ? '#ffffff' : '#00ff88',   // green visor glow
-    black:  f ? '#eeeeee' : '#080808',   // bolter / weapon
-    white:  '#e8e8ff',
-  };
+  const s = r * 1.5;   // draw at 1.5× collision radius for clarity
 
   shadow(ctx, r);
 
-  // ── Greaves / lower legs ──
-  ctx.fillStyle = C.dark;
-  rr(ctx, -r * 0.33, r * 0.15, r * 0.26, r * 0.62, 3);
-  rr(ctx,  r * 0.07, r * 0.15, r * 0.26, r * 0.62, 3);
+  // ── Legs (two rounded stubs) ──
+  ctx.fillStyle = hex(flash, '#001f5e');
+  rr(ctx, -s * 0.3,  s * 0.28, s * 0.24, s * 0.48, 4);
+  rr(ctx,  s * 0.06, s * 0.28, s * 0.24, s * 0.48, 4);
 
-  // Knee pad gold stripe
-  ctx.fillStyle = C.gold;
-  fr(ctx, -r * 0.33, r * 0.28, r * 0.26, r * 0.07);
-  fr(ctx,  r * 0.07, r * 0.28, r * 0.26, r * 0.07);
+  // ── Torso (broad chest plate) ──
+  ctx.fillStyle = hex(flash, '#0033aa');
+  rr(ctx, -s * 0.46, -s * 0.32, s * 0.92, s * 0.62, 6);
 
-  // ── Backpack (behind torso) ──
-  ctx.fillStyle = C.dark;
-  rr(ctx, -r * 0.38, -r * 0.48, r * 0.76, r * 0.44, 4);
-  // Exhaust vents
-  ctx.fillStyle = C.black;
-  fr(ctx, -r * 0.28, -r * 0.46, r * 0.14, r * 0.08);
-  fr(ctx,  r * 0.14, -r * 0.46, r * 0.14, r * 0.08);
+  // ── Arms ──
+  ctx.fillStyle = hex(flash, '#0028880');
+  rr(ctx, -s * 0.72, -s * 0.28, s * 0.28, s * 0.44, 5);   // left
+  rr(ctx,  s * 0.44, -s * 0.28, s * 0.28, s * 0.44, 5);   // right
 
-  // ── Torso / chest plate ──
-  ctx.fillStyle = C.armor;
-  rr(ctx, -r * 0.44, -r * 0.35, r * 0.88, r * 0.56, 5);
+  // ── PAULDRONS — THE iconic Space Marine feature ──
+  // Large circles on both sides, gold-rimmed
+  ctx.fillStyle = hex(flash, '#0033aa');
+  el(ctx, -s * 0.72, -s * 0.22, s * 0.34, s * 0.3);   // left shoulder
+  el(ctx,  s * 0.72, -s * 0.22, s * 0.34, s * 0.3);   // right shoulder
+  if (!flash) {
+    ctx.strokeStyle = '#c9a227'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(-s*0.72, -s*0.22, s*0.34, s*0.3, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse( s*0.72, -s*0.22, s*0.34, s*0.3, 0, 0, Math.PI*2); ctx.stroke();
+    // Ultramarines 'U' symbol on left pad
+    ctx.fillStyle = '#c9a227';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(-s*0.72, -s*0.2, s*0.12, 0, Math.PI, false);
+    ctx.stroke();
+  }
 
-  // Aquila (chest eagle) — small cross of gold
-  ctx.fillStyle = C.gold;
-  fr(ctx, -r * 0.06, -r * 0.22, r * 0.12, r * 0.28);
-  fr(ctx, -r * 0.18, -r * 0.16, r * 0.36, r * 0.1);
+  // ── Chest eagle (Aquila) ──
+  if (!flash) {
+    ctx.fillStyle = '#c9a227';
+    // Wings: two triangles
+    ctx.beginPath(); ctx.moveTo(-s*0.22,-s*0.08); ctx.lineTo(-s*0.04,-s*0.18); ctx.lineTo(-s*0.04,-s*0.0); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo( s*0.22,-s*0.08); ctx.lineTo( s*0.04,-s*0.18); ctx.lineTo( s*0.04,-s*0.0); ctx.closePath(); ctx.fill();
+    // Eagle body
+    el(ctx, 0, -s*0.09, s*0.07, s*0.1);
+  }
 
-  // ── Left arm ──
-  ctx.fillStyle = C.armor;
-  rr(ctx, -r * 0.78, -r * 0.3, r * 0.36, r * 0.48, 4);
+  // ── Bolter (right hand) ──
+  ctx.fillStyle = hex(flash, '#111111');
+  rr(ctx, s*0.46, -s*0.45, s*0.16, s*0.09, 2);   // barrel
+  rr(ctx, s*0.44, -s*0.37, s*0.22, s*0.18, 2);   // body
+  if (!flash) {
+    ctx.fillStyle = '#333';
+    rr(ctx, s*0.52, -s*0.22, s*0.1, s*0.12, 2);  // magazine
+  }
 
-  // ── Right arm + Bolter ──
-  ctx.fillStyle = C.armor;
-  rr(ctx, r * 0.42, -r * 0.3, r * 0.36, r * 0.48, 4);
-  // Bolter barrel/body
-  ctx.fillStyle = C.black;
-  rr(ctx, r * 0.46, -r * 0.48, r * 0.22, r * 0.1, 2);  // barrel
-  rr(ctx, r * 0.44, -r * 0.4,  r * 0.26, r * 0.2, 3);  // body
-  // Mag
-  ctx.fillStyle = C.dark;
-  rr(ctx, r * 0.52, -r * 0.22, r * 0.12, r * 0.14, 2);
+  // ── HELMET — round dome, most recognisable SM element ──
+  ctx.fillStyle = hex(flash, '#0033aa');
+  el(ctx, 0, -s*0.52, s*0.3, s*0.36);
 
-  // ── Shoulder pads (pauldrons) — iconic wide circles ──
-  ctx.fillStyle = C.armor;
-  el(ctx, -r * 0.66, -r * 0.26, r * 0.34, r * 0.28);
-  el(ctx,  r * 0.66, -r * 0.26, r * 0.34, r * 0.28);
-  // Gold rims
-  ctx.strokeStyle = C.gold;
-  els(ctx, -r * 0.66, -r * 0.26, r * 0.34, r * 0.28, 1.5);
-  els(ctx,  r * 0.66, -r * 0.26, r * 0.34, r * 0.28, 1.5);
-  // Chapter marking (small Ultramarines 'U' approximated as a bar)
-  ctx.fillStyle = C.gold;
-  fr(ctx, -r * 0.74, -r * 0.18, r * 0.16, r * 0.06);
-  fr(ctx,  r * 0.58, -r * 0.18, r * 0.16, r * 0.06);
+  // Gold trim ring
+  if (!flash) {
+    ctx.strokeStyle = '#c9a227'; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.ellipse(0, -s*0.52, s*0.3, s*0.36, 0, 0, Math.PI*2); ctx.stroke();
+  }
 
-  // ── Helmet ──
-  ctx.fillStyle = C.armor;
-  el(ctx, 0, -r * 0.56, r * 0.3, r * 0.36);
-  // Gold helmet ring
-  ctx.strokeStyle = C.gold;
-  els(ctx, 0, -r * 0.56, r * 0.3, r * 0.36, 1.5);
-  // Visor slit (glowing)
-  if (!flash) { ctx.shadowColor = C.visor; ctx.shadowBlur = 7; }
-  ctx.fillStyle = C.visor;
-  rr(ctx, -r * 0.18, -r * 0.65, r * 0.36, r * 0.09, 2);
-  ctx.shadowBlur = 0;
-  // Nose vents (two small dark dots below visor)
-  ctx.fillStyle = C.dark;
-  el(ctx, -r * 0.07, -r * 0.51, r * 0.04, r * 0.04);
-  el(ctx,  r * 0.07, -r * 0.51, r * 0.04, r * 0.04);
+  // ── VISOR SLIT — glowing green, the signature look ──
+  glow(ctx, '#00ff88', flash ? 0 : 10, () => {
+    ctx.fillStyle = hex(flash, '#00ff88');
+    rr(ctx, -s*0.18, -s*0.59, s*0.36, s*0.08, 3);
+  });
+
+  // Two vent dots below visor
+  if (!flash) {
+    ctx.fillStyle = '#001040';
+    el(ctx, -s*0.07, -s*0.47, s*0.04, s*0.04);
+    el(ctx,  s*0.07, -s*0.47, s*0.04, s*0.04);
+  }
 }
 
 // ============================================================
-// HORMAGAUNT — small, fast, insectoid Tyranid (r ≈ 8)
+// HORMAGAUNT  (r ≈ 8)
+// Iconic: V-shaped scythe-blade forearms + crouched alien posture
+// Colours: deep purple chitin #3d1050, bone blades #d4c870, red eyes
 // ============================================================
 export function drawHormagaunt(ctx, r, flash) {
-  const C = {
-    chitin: flash ? '#fff' : '#4a1a5a',
-    hi:     flash ? '#fff' : '#8a4a9a',
-    blade:  flash ? '#fff' : '#c4b870',
-    eye:    flash ? '#fff' : '#ff1010',
-    dark:   flash ? '#ccc' : '#1a0828',
-  };
+  const s = r * 1.8;
 
   shadow(ctx, r);
 
-  // ── Spindly legs (thin strokes, 4 legs) ──
-  ctx.strokeStyle = flash ? '#ccc' : '#3a1248';
-  ctx.lineWidth = 1.2;
-  const legAngles = [-0.45, -0.2, 0.2, 0.45];
-  legAngles.forEach(a => {
-    const sx = Math.cos(a - Math.PI / 2) * r * 0.3;
-    const sy = Math.sin(a - Math.PI / 2) * r * 0.3;
-    const ex = sx + Math.cos(a + Math.PI * 0.6) * r * 0.95;
-    const ey = sy + Math.sin(a + Math.PI * 0.6) * r * 0.95;
-    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
-  });
+  // ── Hind legs (three thin lines) ──
+  ctx.strokeStyle = hex(flash, '#2a0838');
+  ctx.lineCap = 'round';
+  line(ctx, -s*0.18, s*0.15,  -s*0.5,  s*0.75, s*0.1);
+  line(ctx,  s*0.18, s*0.15,   s*0.5,  s*0.75, s*0.1);
+  line(ctx,  0,      s*0.18,   0,       s*0.8,  s*0.08);
 
-  // ── Abdomen (rear bulge) ──
-  ctx.fillStyle = C.chitin;
-  el(ctx, 0, r * 0.35, r * 0.42, r * 0.52);
-  ctx.fillStyle = C.hi;
-  el(ctx, 0, r * 0.2, r * 0.28, r * 0.22);
+  // ── Abdomen bulge ──
+  ctx.fillStyle = hex(flash, '#3d1050');
+  el(ctx, 0, s*0.28, s*0.34, s*0.44);
 
-  // ── Thorax (midsection) ──
-  ctx.fillStyle = C.chitin;
-  el(ctx, 0, -r * 0.05, r * 0.3, r * 0.35);
+  // ── Thorax ──
+  ctx.fillStyle = hex(flash, '#5a2075');
+  el(ctx, 0, -s*0.08, s*0.28, s*0.3);
 
-  // ── Scythe arms (two curved blades) ──
-  // Left blade
-  ctx.fillStyle = C.blade;
+  // ── SCYTHE FOREARMS — the defining Hormagaunt feature ──
+  // Each arm: a thick curved bone blade that sweeps up and out
+  ctx.fillStyle = hex(flash, '#d4c870');
+  // Left scythe
   ctx.beginPath();
-  ctx.moveTo(-r * 0.1, -r * 0.15);
-  ctx.bezierCurveTo(-r * 0.5, -r * 0.45, -r * 0.9, -r * 0.1, -r * 0.75, r * 0.3);
-  ctx.bezierCurveTo(-r * 0.8, 0, -r * 0.42, -r * 0.38, -r * 0.08, -r * 0.25);
+  ctx.moveTo(-s*0.12, -s*0.14);
+  ctx.bezierCurveTo(-s*0.45, -s*0.5,  -s*0.85, -s*0.35, -s*0.72,  s*0.18);
+  ctx.bezierCurveTo(-s*0.68,  s*0.0,  -s*0.36, -s*0.38, -s*0.08, -s*0.28);
   ctx.closePath(); ctx.fill();
-  // Right blade
+  // Right scythe
   ctx.beginPath();
-  ctx.moveTo( r * 0.1, -r * 0.15);
-  ctx.bezierCurveTo( r * 0.5, -r * 0.45,  r * 0.9, -r * 0.1,  r * 0.75,  r * 0.3);
-  ctx.bezierCurveTo( r * 0.8, 0,  r * 0.42, -r * 0.38,  r * 0.08, -r * 0.25);
+  ctx.moveTo( s*0.12, -s*0.14);
+  ctx.bezierCurveTo( s*0.45, -s*0.5,   s*0.85, -s*0.35,  s*0.72,  s*0.18);
+  ctx.bezierCurveTo( s*0.68,  s*0.0,   s*0.36, -s*0.38,  s*0.08, -s*0.28);
   ctx.closePath(); ctx.fill();
 
   // ── Head ──
-  ctx.fillStyle = C.chitin;
-  el(ctx, 0, -r * 0.48, r * 0.2, r * 0.22);
-  // Head crest / fin
-  ctx.fillStyle = C.hi;
+  ctx.fillStyle = hex(flash, '#3d1050');
+  el(ctx, 0, -s*0.42, s*0.18, s*0.22);
+  // Skull crest (elongated Tyranid cranium)
+  ctx.fillStyle = hex(flash, '#5a2075');
   ctx.beginPath();
-  ctx.moveTo(0, -r * 0.7);
-  ctx.lineTo(-r * 0.1, -r * 0.5);
-  ctx.lineTo( r * 0.1, -r * 0.5);
+  ctx.moveTo(-s*0.08, -s*0.62);
+  ctx.lineTo( s*0.08, -s*0.62);
+  ctx.lineTo( s*0.14, -s*0.4);
+  ctx.lineTo(-s*0.14, -s*0.4);
   ctx.closePath(); ctx.fill();
-  // Eyes (two glowing dots)
-  if (!flash) { ctx.shadowColor = C.eye; ctx.shadowBlur = 5; }
-  ctx.fillStyle = C.eye;
-  el(ctx, -r * 0.08, -r * 0.5,  r * 0.055, r * 0.055);
-  el(ctx,  r * 0.08, -r * 0.5,  r * 0.055, r * 0.055);
-  ctx.shadowBlur = 0;
+  // Glowing red eyes
+  glow(ctx, '#ff0000', flash ? 0 : 6, () => {
+    ctx.fillStyle = hex(flash, '#ff1010');
+    el(ctx, -s*0.07, -s*0.44, s*0.05, s*0.05);
+    el(ctx,  s*0.07, -s*0.44, s*0.05, s*0.05);
+  });
 }
 
 // ============================================================
-// ORK BOY — stocky, green-skinned WAAAGH warrior (r ≈ 13)
+// ORK BOY  (r ≈ 13)
+// Iconic: MASSIVE round green head + tusks + choppa
+// Colours: Ork green #4a8a28, dark green #2a5018, tusk ivory #e0d0a0
 // ============================================================
 export function drawOrkBoy(ctx, r, flash) {
-  const C = {
-    skin:   flash ? '#fff' : '#4a8a28',
-    dark:   flash ? '#ddd' : '#2a5018',
-    armor:  flash ? '#ccc' : '#3a3a48',
-    armHi:  flash ? '#ddd' : '#5a5a6a',
-    metal:  flash ? '#ccc' : '#6a6a7a',
-    rust:   flash ? '#ccc' : '#8a4a2a',
-    tusk:   flash ? '#fff' : '#e0d0a0',
-    yellow: flash ? '#fff' : '#ffcc00',
-    eye:    flash ? '#fff' : '#ff3020',
-    black:  '#101010',
-  };
+  const s = r * 1.5;
 
   shadow(ctx, r);
 
   // ── Boots ──
-  ctx.fillStyle = C.armor;
-  rr(ctx, -r * 0.38, r * 0.55, r * 0.3, r * 0.38, 3);
-  rr(ctx,  r * 0.08, r * 0.55, r * 0.3, r * 0.38, 3);
+  ctx.fillStyle = hex(flash, '#2a2a38');
+  rr(ctx, -s*0.38, s*0.58, s*0.3,  s*0.34, 4);
+  rr(ctx,  s*0.08, s*0.58, s*0.3,  s*0.34, 4);
 
-  // ── Legs (thick, muscular) ──
-  ctx.fillStyle = C.dark;
-  rr(ctx, -r * 0.36, r * 0.2, r * 0.3, r * 0.4, 4);
-  rr(ctx,  r * 0.06, r * 0.2, r * 0.3, r * 0.4, 4);
+  // ── Legs ──
+  ctx.fillStyle = hex(flash, '#2a5018');
+  rr(ctx, -s*0.36, s*0.24, s*0.28, s*0.38, 4);
+  rr(ctx,  s*0.08, s*0.24, s*0.28, s*0.38, 4);
 
-  // ── Torso (barrel chest, slightly hunched forward) ──
-  ctx.fillStyle = C.skin;
-  rr(ctx, -r * 0.5, -r * 0.28, r, r * 0.55, 5);
-  // Armor scraps on torso
-  ctx.fillStyle = C.armor;
-  rr(ctx, -r * 0.45, -r * 0.22, r * 0.4, r * 0.18, 3);  // left plate
-  // Rivet dots
-  ctx.fillStyle = C.metal;
-  el(ctx, -r * 0.38, -r * 0.2, r * 0.04, r * 0.04);
-  el(ctx, -r * 0.12, -r * 0.2, r * 0.04, r * 0.04);
+  // ── Body (barrel-chested) ──
+  ctx.fillStyle = hex(flash, '#3a7020');
+  rr(ctx, -s*0.46, -s*0.22, s*0.92, s*0.5, 6);
+  // Rusty armour scraps
+  if (!flash) {
+    ctx.fillStyle = '#3a3a48';
+    rr(ctx, -s*0.44, -s*0.2, s*0.4, s*0.16, 3);
+    ctx.fillStyle = '#666670';
+    el(ctx, -s*0.36, -s*0.14, s*0.04, s*0.04);  // rivet
+    el(ctx, -s*0.1,  -s*0.14, s*0.04, s*0.04);
+  }
 
-  // ── Left arm (empty fist) ──
-  ctx.fillStyle = C.skin;
-  rr(ctx, -r * 0.82, -r * 0.22, r * 0.34, r * 0.44, 4);
-  // Fist knuckles
-  ctx.fillStyle = C.dark;
-  fr(ctx, -r * 0.82, r * 0.12, r * 0.34, r * 0.06);
+  // ── Left arm (meaty fist) ──
+  ctx.fillStyle = hex(flash, '#3a7020');
+  rr(ctx, -s*0.78, -s*0.18, s*0.34, s*0.42, 5);
 
-  // ── Right arm (Choppa) ──
-  ctx.fillStyle = C.skin;
-  rr(ctx, r * 0.48, -r * 0.22, r * 0.34, r * 0.44, 4);
-  // Choppa blade (large rusty cleaver)
-  ctx.fillStyle = C.rust;
+  // ── Right arm + CHOPPA ──
+  ctx.fillStyle = hex(flash, '#3a7020');
+  rr(ctx, s*0.44, -s*0.18, s*0.34, s*0.42, 5);
+  // Choppa blade — large, rusty, unmistakably Orky
+  ctx.fillStyle = hex(flash, '#8a4a1a');
   ctx.beginPath();
-  ctx.moveTo( r * 0.56, -r * 0.42);
-  ctx.lineTo( r * 0.86, -r * 0.55);
-  ctx.lineTo( r * 0.9,  -r * 0.18);
-  ctx.lineTo( r * 0.62, -r * 0.12);
+  ctx.moveTo( s*0.56, -s*0.38);
+  ctx.lineTo( s*0.92, -s*0.58);
+  ctx.lineTo( s*0.96, -s*0.12);
+  ctx.lineTo( s*0.6,  -s*0.08);
   ctx.closePath(); ctx.fill();
-  ctx.fillStyle = C.metal;
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = C.black;
-  ctx.stroke();
-  // Choppa handle
-  ctx.fillStyle = C.dark;
-  fr(ctx, r * 0.62, -r * 0.14, r * 0.08, r * 0.28);
+  if (!flash) {
+    ctx.fillStyle = '#c0c0c0';   // blade edge
+    ctx.beginPath();
+    ctx.moveTo(s*0.88, -s*0.56); ctx.lineTo(s*0.94, -s*0.14);
+    ctx.lineWidth = 2; ctx.strokeStyle = '#ddd'; ctx.stroke();
+    // Handle
+    ctx.fillStyle = '#4a3020';
+    rr(ctx, s*0.62, -s*0.1, s*0.08, s*0.24, 2);
+  }
 
-  // ── Head (large, square-ish, big brow) ──
-  ctx.fillStyle = C.skin;
-  rr(ctx, -r * 0.42, -r * 0.72, r * 0.84, r * 0.5, 5);
+  // ── HEAD — THE Ork feature: massive, square, takes up 45% ──
+  ctx.fillStyle = hex(flash, '#4a8a28');
+  rr(ctx, -s*0.44, -s*0.74, s*0.88, s*0.56, 7);
   // Heavy brow ridge
-  ctx.fillStyle = C.dark;
-  fr(ctx, -r * 0.42, -r * 0.72, r * 0.84, r * 0.12);
-  // Scrap metal helmet strip
-  ctx.fillStyle = C.armor;
-  fr(ctx, -r * 0.42, -r * 0.72, r * 0.84, r * 0.09);
-  ctx.fillStyle = C.yellow;
-  fr(ctx, -r * 0.42, -r * 0.72, r * 0.84, r * 0.04);
+  ctx.fillStyle = hex(flash, '#2a5018');
+  rr(ctx, -s*0.44, -s*0.74, s*0.88, s*0.12, 7);
 
-  // ── Tusks ──
-  ctx.fillStyle = C.tusk;
+  // ── TUSKS — two ivory fangs, essential Ork trait ──
+  ctx.fillStyle = hex(flash, '#e0d0a0');
   // Left tusk
   ctx.beginPath();
-  ctx.moveTo(-r * 0.22, -r * 0.32);
-  ctx.lineTo(-r * 0.32, -r * 0.14);
-  ctx.lineTo(-r * 0.14, -r * 0.16);
+  ctx.moveTo(-s*0.2, -s*0.32); ctx.lineTo(-s*0.32, -s*0.1); ctx.lineTo(-s*0.12, -s*0.12);
   ctx.closePath(); ctx.fill();
   // Right tusk
   ctx.beginPath();
-  ctx.moveTo( r * 0.22, -r * 0.32);
-  ctx.lineTo( r * 0.32, -r * 0.14);
-  ctx.lineTo( r * 0.14, -r * 0.16);
+  ctx.moveTo( s*0.2, -s*0.32); ctx.lineTo( s*0.32, -s*0.1); ctx.lineTo( s*0.12, -s*0.12);
   ctx.closePath(); ctx.fill();
 
-  // ── Eyes (red, beady) ──
-  if (!flash) { ctx.shadowColor = C.eye; ctx.shadowBlur = 4; }
-  ctx.fillStyle = C.eye;
-  el(ctx, -r * 0.2, -r * 0.55, r * 0.07, r * 0.07);
-  el(ctx,  r * 0.2, -r * 0.55, r * 0.07, r * 0.07);
-  ctx.shadowBlur = 0;
-  // Pupils
-  ctx.fillStyle = C.black;
-  el(ctx, -r * 0.2, -r * 0.55, r * 0.03, r * 0.03);
-  el(ctx,  r * 0.2, -r * 0.55, r * 0.03, r * 0.03);
-  // Nose (flat, two nostrils)
-  ctx.fillStyle = C.dark;
-  el(ctx, -r * 0.08, -r * 0.42, r * 0.06, r * 0.04);
-  el(ctx,  r * 0.08, -r * 0.42, r * 0.06, r * 0.04);
+  // ── Eyes ──
+  glow(ctx, '#ff4000', flash ? 0 : 4, () => {
+    ctx.fillStyle = hex(flash, '#ff3010');
+    el(ctx, -s*0.2, -s*0.55, s*0.07, s*0.07);
+    el(ctx,  s*0.2, -s*0.55, s*0.07, s*0.07);
+  });
+  ctx.fillStyle = '#000';
+  el(ctx, -s*0.2, -s*0.55, s*0.03, s*0.03);
+  el(ctx,  s*0.2, -s*0.55, s*0.03, s*0.03);
+
+  // Nostrils (flat Ork nose)
+  ctx.fillStyle = hex(flash, '#2a5018');
+  el(ctx, -s*0.08, -s*0.42, s*0.06, s*0.04);
+  el(ctx,  s*0.08, -s*0.42, s*0.06, s*0.04);
 }
 
 // ============================================================
-// TYRANID WARRIOR — tall, mantis-like alien warrior (r ≈ 17)
+// TYRANID WARRIOR  (r ≈ 17)
+// Iconic: wide swept SCYTHING TALONS + tall elongated skull
+// Colours: dark purple carapace #1a0a28, bone talons #c8b870, cyan eyes
 // ============================================================
 export function drawTyranidWarrior(ctx, r, flash) {
-  const C = {
-    carap: flash ? '#fff' : '#2a1540',
-    hi:    flash ? '#ddd' : '#7a4aaa',
-    talon: flash ? '#fff' : '#d4c890',
-    soft:  flash ? '#eee' : '#5a2030',
-    eye:   flash ? '#fff' : '#00aaff',
-    dark:  flash ? '#ccc' : '#12081e',
-    bone:  flash ? '#fff' : '#c8b88a',
-  };
+  const s = r * 1.45;
 
   shadow(ctx, r);
 
-  // ── Hind legs (thin, digitigrade) ──
-  ctx.strokeStyle = flash ? '#ccc' : C.dark;
-  ctx.lineWidth = r * 0.14;
-  ctx.lineCap = 'round';
-  // Left hind leg
-  ctx.beginPath();
-  ctx.moveTo(-r * 0.22, r * 0.22);
-  ctx.lineTo(-r * 0.38, r * 0.6);
-  ctx.lineTo(-r * 0.22, r * 0.88);
-  ctx.stroke();
-  // Right hind leg
-  ctx.beginPath();
-  ctx.moveTo( r * 0.22, r * 0.22);
-  ctx.lineTo( r * 0.38, r * 0.6);
-  ctx.lineTo( r * 0.22, r * 0.88);
-  ctx.stroke();
+  // ── Digitigrade hind legs ──
+  ctx.strokeStyle = hex(flash, '#1a0a28');
+  ctx.lineWidth = s * 0.14; ctx.lineCap = 'round';
+  // Left
+  ctx.beginPath(); ctx.moveTo(-s*0.22, s*0.2); ctx.lineTo(-s*0.38, s*0.58); ctx.lineTo(-s*0.22, s*0.88); ctx.stroke();
+  // Right
+  ctx.beginPath(); ctx.moveTo( s*0.22, s*0.2); ctx.lineTo( s*0.38, s*0.58); ctx.lineTo( s*0.22, s*0.88); ctx.stroke();
   // Taloned feet
-  ctx.fillStyle = C.bone;
-  el(ctx, -r * 0.22, r * 0.88, r * 0.09, r * 0.06);
-  el(ctx,  r * 0.22, r * 0.88, r * 0.09, r * 0.06);
+  ctx.fillStyle = hex(flash, '#c8b870');
+  el(ctx, -s*0.22, s*0.88, s*0.1, s*0.06);
+  el(ctx,  s*0.22, s*0.88, s*0.1, s*0.06);
 
   // ── Abdomen ──
-  ctx.fillStyle = C.carap;
-  el(ctx, 0, r * 0.3, r * 0.28, r * 0.42);
-  // Carapace highlight
-  ctx.fillStyle = C.hi;
-  el(ctx, 0, r * 0.18, r * 0.18, r * 0.18);
+  ctx.fillStyle = hex(flash, '#2d1245');
+  el(ctx, 0, s*0.28, s*0.25, s*0.38);
 
-  // ── Torso / thorax ──
-  ctx.fillStyle = C.carap;
-  el(ctx, 0, -r * 0.1, r * 0.36, r * 0.44);
-  // Carapace plates (segmented back)
-  ctx.fillStyle = C.hi;
-  el(ctx, 0, -r * 0.18, r * 0.24, r * 0.18);
-  // Soft underbelly stripe
-  ctx.fillStyle = C.soft;
-  rr(ctx, -r * 0.1, -r * 0.05, r * 0.2, r * 0.35, 4);
+  // ── Thorax / carapace ──
+  ctx.fillStyle = hex(flash, '#1a0a28');
+  el(ctx, 0, -s*0.06, s*0.34, s*0.42);
+  // Carapace highlight plate
+  ctx.fillStyle = hex(flash, '#4a2068');
+  el(ctx, 0, -s*0.14, s*0.22, s*0.22);
+  // Spine ridge bumps
+  if (!flash) {
+    ctx.fillStyle = '#6a3a88';
+    for (let i = 0; i < 4; i++) {
+      el(ctx, 0, -s*0.38 + i*s*0.14, s*0.07, s*0.07);
+    }
+  }
 
-  // ── Large Scything Talons ──
-  // LEFT talon arm + blade
-  ctx.fillStyle = C.carap;
-  ctx.lineWidth = r * 0.12;
-  ctx.strokeStyle = C.carap;
+  // ── SCYTHING TALONS — swept-back bone blades, THE Warrior feature ──
+  ctx.fillStyle = hex(flash, '#c8b870');
+  // Left talon
   ctx.beginPath();
-  ctx.moveTo(-r * 0.28, -r * 0.12);
-  ctx.bezierCurveTo(-r * 0.7, -r * 0.3, -r * 1.0, 0.0, -r * 0.85, r * 0.45);
-  ctx.stroke();
-  // Blade itself
-  ctx.fillStyle = C.talon;
-  ctx.beginPath();
-  ctx.moveTo(-r * 0.28, -r * 0.18);
-  ctx.bezierCurveTo(-r * 0.8, -r * 0.55, -r * 1.1, -r * 0.1, -r * 0.9, r * 0.5);
-  ctx.bezierCurveTo(-r * 0.85, r * 0.2, -r * 0.62, -r * 0.42, -r * 0.24, -r * 0.3);
+  ctx.moveTo(-s*0.24, -s*0.14);
+  ctx.bezierCurveTo(-s*0.7, -s*0.55, -s*1.05, -s*0.18, -s*0.85,  s*0.42);
+  ctx.bezierCurveTo(-s*0.78,  s*0.15, -s*0.55, -s*0.42, -s*0.18, -s*0.28);
   ctx.closePath(); ctx.fill();
-  // RIGHT talon arm + blade
-  ctx.fillStyle = C.carap;
+  // Right talon
   ctx.beginPath();
-  ctx.moveTo( r * 0.28, -r * 0.12);
-  ctx.bezierCurveTo( r * 0.7, -r * 0.3,  r * 1.0, 0.0,  r * 0.85, r * 0.45);
-  ctx.stroke();
-  ctx.fillStyle = C.talon;
-  ctx.beginPath();
-  ctx.moveTo( r * 0.28, -r * 0.18);
-  ctx.bezierCurveTo( r * 0.8, -r * 0.55,  r * 1.1, -r * 0.1,  r * 0.9, r * 0.5);
-  ctx.bezierCurveTo( r * 0.85, r * 0.2,  r * 0.62, -r * 0.42,  r * 0.24, -r * 0.3);
+  ctx.moveTo( s*0.24, -s*0.14);
+  ctx.bezierCurveTo( s*0.7, -s*0.55,  s*1.05, -s*0.18,  s*0.85,  s*0.42);
+  ctx.bezierCurveTo( s*0.78,  s*0.15,  s*0.55, -s*0.42,  s*0.18, -s*0.28);
   ctx.closePath(); ctx.fill();
+  // Dark veining on talons
+  if (!flash) {
+    ctx.strokeStyle = '#8a7840'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-s*0.52,-s*0.38); ctx.lineTo(-s*0.7, s*0.1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo( s*0.52,-s*0.38); ctx.lineTo( s*0.7, s*0.1); ctx.stroke();
+  }
 
-  // ── Head ──
-  ctx.fillStyle = C.carap;
-  el(ctx, 0, -r * 0.54, r * 0.22, r * 0.26);
-  // Head crest / elongated skull
+  // ── Head (ELONGATED skull — Giger/alien aesthetic) ──
+  // Skull crown (elongated rear cranium going up)
+  ctx.fillStyle = hex(flash, '#1a0a28');
   ctx.beginPath();
-  ctx.moveTo(-r * 0.1, -r * 0.78);
-  ctx.lineTo( r * 0.1, -r * 0.78);
-  ctx.lineTo( r * 0.18, -r * 0.52);
-  ctx.lineTo(-r * 0.18, -r * 0.52);
+  ctx.moveTo(-s*0.1, -s*0.92);
+  ctx.lineTo( s*0.1, -s*0.92);
+  ctx.lineTo( s*0.2, -s*0.52);
+  ctx.lineTo(-s*0.2, -s*0.52);
   ctx.closePath(); ctx.fill();
-  // Eyes — two glowing blue slits
-  if (!flash) { ctx.shadowColor = C.eye; ctx.shadowBlur = 8; }
-  ctx.fillStyle = C.eye;
-  ctx.fillRect(-r * 0.14, -r * 0.62, r * 0.1, r * 0.055);
-  ctx.fillRect( r * 0.04, -r * 0.62, r * 0.1, r * 0.055);
-  ctx.shadowBlur = 0;
+  // Face
+  el(ctx, 0, -s*0.48, s*0.2, s*0.24);
+  // Jaw/mandibles
+  ctx.fillStyle = hex(flash, '#3a1848');
+  ctx.beginPath();
+  ctx.moveTo(-s*0.2, -s*0.38); ctx.lineTo(-s*0.28, -s*0.2); ctx.lineTo( s*0.0, -s*0.32); ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo( s*0.2, -s*0.38); ctx.lineTo( s*0.28, -s*0.2); ctx.lineTo( s*0.0, -s*0.32); ctx.closePath(); ctx.fill();
+  // CYAN glowing eyes — unmistakeable Tyranid look
+  glow(ctx, '#00aaff', flash ? 0 : 10, () => {
+    ctx.fillStyle = hex(flash, '#00ccff');
+    el(ctx, -s*0.1, -s*0.54, s*0.06, s*0.05);
+    el(ctx,  s*0.1, -s*0.54, s*0.06, s*0.05);
+  });
 }
 
 // ============================================================
-// CARNIFEX — massive quadruped boss Tyranid (r ≈ 34)
+// CARNIFEX  boss  (r ≈ 34)
+// Iconic: quadrupedal TANK, crushing bone claws, armoured dome
+// Colours: obsidian carapace #120820, violet highlights #8030c0
 // ============================================================
-export function drawCarnifex(ctx, r, flash, hp, maxHp) {
-  const C = {
-    carap: flash ? '#fff' : '#1e0e30',
-    hi:    flash ? '#ddd' : '#7030c0',
-    bone:  flash ? '#fff' : '#c8b880',
-    flesh: flash ? '#eee' : '#5a1828',
-    eye:   flash ? '#fff' : '#ff2000',
-    dark:  flash ? '#ccc' : '#0a0414',
-    spike: flash ? '#fff' : '#d0c070',
-  };
+export function drawCarnifex(ctx, r, flash) {
+  const s = r * 1.3;
 
-  // Boss pulsing aura
+  // Purple boss aura
   if (!flash) {
-    const pulse = 0.55 + 0.18 * Math.sin(Date.now() * 0.004);
-    const grd = ctx.createRadialGradient(0, 0, r * 0.4, 0, 0, r * 1.5);
-    grd.addColorStop(0, `rgba(112,0,192,${pulse * 0.35})`);
-    grd.addColorStop(1, 'rgba(112,0,192,0)');
-    ctx.fillStyle = grd;
-    el(ctx, 0, 0, r * 1.5, r * 1.5);
+    const p = 0.5 + 0.2 * Math.sin(Date.now() * 0.004);
+    const g = ctx.createRadialGradient(0,0,s*0.3, 0,0,s*1.4);
+    g.addColorStop(0, `rgba(128,0,200,${p*0.4})`); g.addColorStop(1,'rgba(128,0,200,0)');
+    ctx.fillStyle = g; el(ctx, 0, 0, s*1.4, s*1.4);
   }
-
   shadow(ctx, r);
 
   // ── Back legs (thick pillars) ──
-  ctx.fillStyle = C.carap;
-  rr(ctx, -r * 0.72, r * 0.35, r * 0.36, r * 0.58, 6);
-  rr(ctx,  r * 0.36, r * 0.35, r * 0.36, r * 0.58, 6);
+  ctx.fillStyle = hex(flash, '#1a0830');
+  rr(ctx, -s*0.7, s*0.38, s*0.34, s*0.55, 7);
+  rr(ctx,  s*0.36,s*0.38, s*0.34, s*0.55, 7);
   // Foot claws
-  ctx.fillStyle = C.bone;
-  el(ctx, -r * 0.54, r * 0.88, r * 0.18, r * 0.1);
-  el(ctx,  r * 0.54, r * 0.88, r * 0.18, r * 0.1);
+  ctx.fillStyle = hex(flash, '#c0a860');
+  el(ctx, -s*0.53, s*0.9, s*0.18, s*0.1);
+  el(ctx,  s*0.53, s*0.9, s*0.18, s*0.1);
 
-  // ── Massive body ──
-  ctx.fillStyle = C.carap;
-  el(ctx, 0, r * 0.06, r * 0.68, r * 0.72);
-  // Carapace highlight
-  ctx.fillStyle = C.hi;
-  el(ctx, 0, -r * 0.08, r * 0.44, r * 0.38);
-  // Fleshy underbelly
-  ctx.fillStyle = C.flesh;
-  el(ctx, 0, r * 0.22, r * 0.3, r * 0.38);
-
-  // ── Spine spikes (row down the back) ──
-  ctx.fillStyle = C.spike;
+  // ── Massive body / carapace dome ──
+  ctx.fillStyle = hex(flash, '#120820');
+  el(ctx, 0, s*0.05, s*0.62, s*0.68);
+  // Carapace ridge plates
+  ctx.fillStyle = hex(flash, '#8030c0');
+  el(ctx, 0, -s*0.1, s*0.44, s*0.42);
+  el(ctx, 0, -s*0.22,s*0.28, s*0.25);
+  // Spine spikes row
+  ctx.fillStyle = hex(flash, '#c0a860');
   for (let i = 0; i < 5; i++) {
-    const sy = -r * 0.4 + i * r * 0.22;
-    const sw = r * 0.1 - i * r * 0.01;
+    const sy = -s*0.4 + i * s*0.22;
+    const sw = s * (0.1 - i*0.008);
     ctx.beginPath();
-    ctx.moveTo(0, sy - r * 0.22);
-    ctx.lineTo(-sw, sy);
-    ctx.lineTo( sw, sy);
+    ctx.moveTo(0, sy - s*0.18); ctx.lineTo(-sw, sy); ctx.lineTo(sw, sy);
     ctx.closePath(); ctx.fill();
   }
 
-  // ── Front legs / crushing claws ──
-  // Left claw arm
-  ctx.fillStyle = C.carap;
-  ctx.lineWidth = r * 0.22;
-  ctx.strokeStyle = C.carap;
-  ctx.lineCap = 'round';
+  // ── BONE CRUSHING CLAWS — two pairs of swept blades ──
+  ctx.fillStyle = hex(flash, '#c0a860');
+  // Left claw
   ctx.beginPath();
-  ctx.moveTo(-r * 0.5, -r * 0.2);
-  ctx.lineTo(-r * 0.9, -r * 0.55);
-  ctx.stroke();
-  // Left claw blades
-  ctx.fillStyle = C.bone;
-  ctx.beginPath();
-  ctx.moveTo(-r * 0.78, -r * 0.72);
-  ctx.lineTo(-r * 1.08, -r * 0.42);
-  ctx.lineTo(-r * 0.98, -r * 0.3);
-  ctx.lineTo(-r * 0.66, -r * 0.52);
+  ctx.moveTo(-s*0.44, -s*0.22);
+  ctx.bezierCurveTo(-s*0.9, -s*0.55, -s*1.15, -s*0.25, -s*0.95, s*0.35);
+  ctx.bezierCurveTo(-s*0.9,  s*0.1, -s*0.72, -s*0.42, -s*0.38, -s*0.38);
   ctx.closePath(); ctx.fill();
+  // Left claw inner blade
+  ctx.fillStyle = hex(flash, '#120820');
   ctx.beginPath();
-  ctx.moveTo(-r * 0.88, -r * 0.62);
-  ctx.lineTo(-r * 1.14, -r * 0.75);
-  ctx.lineTo(-r * 1.08, -r * 0.56);
-  ctx.closePath(); ctx.fill();
-  // Right claw arm
-  ctx.fillStyle = C.carap;
+  ctx.moveTo(-s*0.5, -s*0.3);
+  ctx.bezierCurveTo(-s*0.85,-s*0.52, -s*1.0, -s*0.22, -s*0.9, s*0.22);
+  ctx.lineWidth = s*0.04; ctx.strokeStyle = hex(flash,'#120820'); ctx.stroke();
+  // Right claw
+  ctx.fillStyle = hex(flash, '#c0a860');
   ctx.beginPath();
-  ctx.moveTo( r * 0.5, -r * 0.2);
-  ctx.lineTo( r * 0.9, -r * 0.55);
-  ctx.stroke();
-  ctx.fillStyle = C.bone;
-  ctx.beginPath();
-  ctx.moveTo( r * 0.78, -r * 0.72);
-  ctx.lineTo( r * 1.08, -r * 0.42);
-  ctx.lineTo( r * 0.98, -r * 0.3);
-  ctx.lineTo( r * 0.66, -r * 0.52);
-  ctx.closePath(); ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo( r * 0.88, -r * 0.62);
-  ctx.lineTo( r * 1.14, -r * 0.75);
-  ctx.lineTo( r * 1.08, -r * 0.56);
+  ctx.moveTo( s*0.44, -s*0.22);
+  ctx.bezierCurveTo( s*0.9, -s*0.55,  s*1.15, -s*0.25,  s*0.95, s*0.35);
+  ctx.bezierCurveTo( s*0.9,  s*0.1,  s*0.72, -s*0.42,  s*0.38, -s*0.38);
   ctx.closePath(); ctx.fill();
 
-  // ── Head ──
-  ctx.fillStyle = C.carap;
-  el(ctx, 0, -r * 0.6, r * 0.4, r * 0.38);
-  // Jaw (lower)
-  ctx.fillStyle = C.flesh;
+  // ── Tyranid head ──
+  ctx.fillStyle = hex(flash, '#120820');
+  el(ctx, 0, -s*0.6, s*0.38, s*0.34);
+  // Upper jaw
+  ctx.fillStyle = hex(flash, '#2a1045');
   ctx.beginPath();
-  ctx.moveTo(-r * 0.32, -r * 0.46);
-  ctx.bezierCurveTo(-r * 0.38, -r * 0.24, r * 0.38, -r * 0.24, r * 0.32, -r * 0.46);
-  ctx.lineTo(-r * 0.32, -r * 0.46);
+  ctx.moveTo(-s*0.3, -s*0.52); ctx.lineTo( s*0.3, -s*0.52);
+  ctx.lineTo( s*0.28, -s*0.36); ctx.lineTo(-s*0.28, -s*0.36);
+  ctx.closePath(); ctx.fill();
+  // Lower jaw (open, showing teeth)
+  ctx.fillStyle = hex(flash, '#3a1828');
+  ctx.beginPath();
+  ctx.moveTo(-s*0.26, -s*0.4); ctx.lineTo( s*0.26, -s*0.4);
+  ctx.bezierCurveTo(s*0.28, -s*0.2, -s*0.28, -s*0.2, -s*0.26, -s*0.4);
   ctx.fill();
   // Teeth
-  ctx.fillStyle = C.bone;
+  ctx.fillStyle = hex(flash, '#d0c080');
   for (let i = -3; i <= 3; i++) {
     ctx.beginPath();
-    ctx.moveTo(i * r * 0.09,   -r * 0.46);
-    ctx.lineTo((i + 0.5) * r * 0.09, -r * 0.34);
-    ctx.lineTo((i + 1) * r * 0.09,   -r * 0.46);
+    ctx.moveTo(i*s*0.08, -s*0.39);
+    ctx.lineTo((i+0.5)*s*0.08, -s*0.3);
+    ctx.lineTo((i+1)*s*0.08,   -s*0.39);
     ctx.fill();
   }
-  // Head crest
-  ctx.fillStyle = C.hi;
+  // Head skull crest
+  ctx.fillStyle = hex(flash, '#120820');
   ctx.beginPath();
-  ctx.moveTo(-r * 0.16, -r * 0.96);
-  ctx.lineTo( r * 0.16, -r * 0.96);
-  ctx.lineTo( r * 0.3,  -r * 0.7);
-  ctx.lineTo(-r * 0.3,  -r * 0.7);
+  ctx.moveTo(-s*0.14, -s*0.94); ctx.lineTo(s*0.14, -s*0.94);
+  ctx.lineTo(s*0.26, -s*0.7); ctx.lineTo(-s*0.26, -s*0.7);
   ctx.closePath(); ctx.fill();
-  // Eyes — burning red
-  if (!flash) { ctx.shadowColor = C.eye; ctx.shadowBlur = 12; }
-  ctx.fillStyle = C.eye;
-  el(ctx, -r * 0.2, -r * 0.65, r * 0.09, r * 0.09);
-  el(ctx,  r * 0.2, -r * 0.65, r * 0.09, r * 0.09);
-  ctx.shadowBlur = 0;
+  // BURNING RED eyes
+  glow(ctx, '#ff2000', flash ? 0 : 14, () => {
+    ctx.fillStyle = hex(flash, '#ff2000');
+    el(ctx, -s*0.18, -s*0.66, s*0.09, s*0.09);
+    el(ctx,  s*0.18, -s*0.66, s*0.09, s*0.09);
+  });
 }
 
 // ============================================================
-// WARBOSS — enormous Ork boss (r ≈ 38)
+// WARBOSS  boss  (r ≈ 38)
+// Iconic: POWER KLAW mechanical arm + huge horned helmet + tusks
+// Colours: dark Ork green #2a6010, heavy armour #202030
 // ============================================================
 export function drawWarboss(ctx, r, flash) {
-  const C = {
-    skin:  flash ? '#fff' : '#3a7020',
-    dark:  flash ? '#ddd' : '#1a3808',
-    armor: flash ? '#ccc' : '#2a2a38',
-    armHi: flash ? '#ddd' : '#4a4a5a',
-    metal: flash ? '#ccc' : '#6a6a8a',
-    yellow:flash ? '#fff' : '#ffcc00',
-    tusk:  flash ? '#fff' : '#e0d090',
-    eye:   flash ? '#fff' : '#ff4000',
-    black: '#101010',
-    rust:  flash ? '#ccc' : '#8a3a1a',
-  };
+  const s = r * 1.25;
 
-  // Boss aura
+  // Green boss aura
   if (!flash) {
-    const pulse = 0.5 + 0.18 * Math.sin(Date.now() * 0.004);
-    const grd = ctx.createRadialGradient(0, 0, r * 0.4, 0, 0, r * 1.5);
-    grd.addColorStop(0, `rgba(80,160,20,${pulse * 0.35})`);
-    grd.addColorStop(1, 'rgba(80,160,20,0)');
-    ctx.fillStyle = grd;
-    el(ctx, 0, 0, r * 1.5, r * 1.5);
+    const p = 0.45 + 0.2 * Math.sin(Date.now() * 0.004);
+    const g = ctx.createRadialGradient(0,0,s*0.3, 0,0,s*1.4);
+    g.addColorStop(0,`rgba(60,140,10,${p*0.4})`); g.addColorStop(1,'rgba(60,140,10,0)');
+    ctx.fillStyle = g; el(ctx, 0, 0, s*1.4, s*1.4);
   }
-
   shadow(ctx, r);
 
-  // ── Boots ──
-  ctx.fillStyle = C.armor;
-  rr(ctx, -r * 0.52, r * 0.58, r * 0.38, r * 0.36, 5);
-  rr(ctx,  r * 0.14, r * 0.58, r * 0.38, r * 0.36, 5);
+  // ── Boots / feet ──
+  ctx.fillStyle = hex(flash, '#1a1a28');
+  rr(ctx, -s*0.5, s*0.62, s*0.38, s*0.32, 5);
+  rr(ctx,  s*0.12,s*0.62, s*0.38, s*0.32, 5);
 
   // ── Legs ──
-  ctx.fillStyle = C.dark;
-  rr(ctx, -r * 0.5,  r * 0.25, r * 0.36, r * 0.38, 5);
-  rr(ctx,  r * 0.14, r * 0.25, r * 0.36, r * 0.38, 5);
+  ctx.fillStyle = hex(flash, '#1e4a0a');
+  rr(ctx, -s*0.48, s*0.26, s*0.36, s*0.4, 5);
+  rr(ctx,  s*0.12, s*0.26, s*0.36, s*0.4, 5);
 
-  // ── Torso (massive, armour-plated) ──
-  ctx.fillStyle = C.skin;
-  el(ctx, 0, r * 0.04, r * 0.56, r * 0.55);
-  // Front armour plate
-  ctx.fillStyle = C.armor;
-  rr(ctx, -r * 0.46, -r * 0.18, r * 0.92, r * 0.45, 6);
-  // Rivets
-  ctx.fillStyle = C.yellow;
-  const rivets = [[-0.34,-0.12],[0.34,-0.12],[-0.34,0.12],[0.34,0.12],[0,-0.04]];
-  rivets.forEach(([rx, ry]) => el(ctx, rx*r, ry*r, r*0.045, r*0.045));
-
-  // ── Left Arm (giant fist) ──
-  ctx.fillStyle = C.skin;
-  rr(ctx, -r * 0.92, -r * 0.28, r * 0.44, r * 0.6, 6);
-  ctx.fillStyle = C.armor;
-  rr(ctx, -r * 0.9, r * 0.16, r * 0.4, r * 0.2, 4);  // knuckle plate
-  ctx.fillStyle = C.metal;
-  for (let i = 0; i < 4; i++) fr(ctx, -r*(0.88-i*0.09), r*0.17, r*0.06, r*0.06);
-
-  // ── Right Arm (Power Klaw — huge mechanical claw) ──
-  ctx.fillStyle = C.armor;
-  rr(ctx, r * 0.48, -r * 0.38, r * 0.5, r * 0.62, 6);
-  // Klaw fingers (3 blades)
-  ctx.fillStyle = C.metal;
-  for (let i = 0; i < 3; i++) {
-    const ox = r * (0.52 + i * 0.14);
-    ctx.beginPath();
-    ctx.moveTo(ox, -r * 0.52);
-    ctx.lineTo(ox + r * 0.1, -r * 0.85);
-    ctx.lineTo(ox + r * 0.22, -r * 0.52);
-    ctx.closePath(); ctx.fill();
+  // ── Torso (massive armoured chest) ──
+  ctx.fillStyle = hex(flash, '#2a6010');
+  el(ctx, 0, s*0.06, s*0.52, s*0.52);
+  // Armour plate
+  ctx.fillStyle = hex(flash, '#202030');
+  rr(ctx, -s*0.46, -s*0.14, s*0.92, s*0.42, 6);
+  // Yellow warning stripes
+  if (!flash) {
+    ctx.fillStyle = '#ffcc00';
+    for (let i = 0; i < 3; i++) {
+      rr(ctx, -s*0.44 + i*s*0.3, -s*0.12, s*0.12, s*0.38, 2);
+    }
+    ctx.fillStyle = '#181828';
+    for (let i = 0; i < 3; i++) {
+      rr(ctx, -s*0.44 + i*s*0.3 + s*0.06, -s*0.12, s*0.12, s*0.38, 2);
+    }
   }
-  // Klaw hydraulics
-  ctx.fillStyle = C.yellow;
-  fr(ctx, r * 0.54, -r * 0.36, r * 0.36, r * 0.08);
-  ctx.fillStyle = C.rust;
-  fr(ctx, r * 0.58, -r * 0.26, r * 0.28, r * 0.06);
 
-  // ── Huge Ork Head ──
-  ctx.fillStyle = C.skin;
-  rr(ctx, -r * 0.46, -r * 0.8, r * 0.92, r * 0.65, 8);
-  // War helmet / armour crown
-  ctx.fillStyle = C.armor;
-  rr(ctx, -r * 0.5, -r * 0.82, r, r * 0.3, 4);
-  // Horns on helmet
-  ctx.fillStyle = C.metal;
+  // ── Left arm (giant fist with knuckle dusters) ──
+  ctx.fillStyle = hex(flash, '#2a6010');
+  rr(ctx, -s*0.88, -s*0.22, s*0.44, s*0.56, 7);
+  ctx.fillStyle = hex(flash, '#303040');
+  rr(ctx, -s*0.86, s*0.2, s*0.4, s*0.18, 3);   // knuckle plate
+  if (!flash) {
+    ctx.fillStyle = '#888898';
+    for (let i = 0; i < 4; i++)
+      el(ctx, -s*0.8 + i*s*0.09, s*0.24, s*0.04, s*0.04);
+  }
+
+  // ── POWER KLAW arm — THE Warboss signature ──
+  // Heavy mechanical arm casing
+  ctx.fillStyle = hex(flash, '#303040');
+  rr(ctx, s*0.44, -s*0.32, s*0.52, s*0.58, 7);
+  // Hydraulics
+  if (!flash) {
+    ctx.fillStyle = '#ffcc00';
+    rr(ctx, s*0.48, -s*0.28, s*0.44, s*0.08, 3);
+    ctx.fillStyle = '#ff4400';
+    rr(ctx, s*0.52, -s*0.16, s*0.36, s*0.06, 2);
+  }
+  // Three massive blade fingers
+  ctx.fillStyle = hex(flash, '#8080a0');
+  for (let i = 0; i < 3; i++) {
+    const ox = s*(0.5 + i*0.14);
+    ctx.beginPath();
+    ctx.moveTo(ox, -s*0.46);
+    ctx.lineTo(ox + s*0.08, -s*0.88);
+    ctx.lineTo(ox + s*0.2,  -s*0.46);
+    ctx.closePath(); ctx.fill();
+    // Claw tip glow
+    if (!flash) {
+      ctx.fillStyle = '#c0c0d0';
+      el(ctx, ox + s*0.1, -s*0.84, s*0.04, s*0.04);
+      ctx.fillStyle = '#8080a0';
+    }
+  }
+
+  // ── HEAD (enormous, with horned war-helmet) ──
+  // Helmet body
+  ctx.fillStyle = hex(flash, '#202030');
+  rr(ctx, -s*0.48, -s*0.82, s*0.96, s*0.68, 8);
+  // Helmet horns — essential Warboss look
+  ctx.fillStyle = hex(flash, '#404050');
   ctx.beginPath();
-  ctx.moveTo(-r * 0.42, -r * 0.82);
-  ctx.lineTo(-r * 0.55, -r * 1.08);
-  ctx.lineTo(-r * 0.28, -r * 0.82);
+  ctx.moveTo(-s*0.44, -s*0.82); ctx.lineTo(-s*0.62, -s*1.14); ctx.lineTo(-s*0.26,-s*0.82);
   ctx.closePath(); ctx.fill();
   ctx.beginPath();
-  ctx.moveTo( r * 0.42, -r * 0.82);
-  ctx.lineTo( r * 0.55, -r * 1.08);
-  ctx.lineTo( r * 0.28, -r * 0.82);
+  ctx.moveTo( s*0.44, -s*0.82); ctx.lineTo( s*0.62, -s*1.14); ctx.lineTo( s*0.26,-s*0.82);
   ctx.closePath(); ctx.fill();
-  // Brow shadow
-  ctx.fillStyle = C.dark;
-  fr(ctx, -r * 0.46, -r * 0.58, r * 0.92, r * 0.12);
-  // Tusks (large)
-  ctx.fillStyle = C.tusk;
-  ctx.beginPath();
-  ctx.moveTo(-r * 0.28, -r * 0.3);
-  ctx.lineTo(-r * 0.44, -r * 0.0);
-  ctx.lineTo(-r * 0.18, -r * 0.04);
-  ctx.closePath(); ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo( r * 0.28, -r * 0.3);
-  ctx.lineTo( r * 0.44, -r * 0.0);
-  ctx.lineTo( r * 0.18, -r * 0.04);
-  ctx.closePath(); ctx.fill();
-  // Eyes (burning orange-red)
-  if (!flash) { ctx.shadowColor = C.eye; ctx.shadowBlur = 12; }
-  ctx.fillStyle = C.eye;
-  el(ctx, -r * 0.22, -r * 0.5, r * 0.1, r * 0.1);
-  el(ctx,  r * 0.22, -r * 0.5, r * 0.1, r * 0.1);
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = C.black;
-  el(ctx, -r * 0.22, -r * 0.5, r * 0.04, r * 0.04);
-  el(ctx,  r * 0.22, -r * 0.5, r * 0.04, r * 0.04);
-  // Nose
-  ctx.fillStyle = C.dark;
-  el(ctx, -r * 0.1, -r * 0.36, r * 0.08, r * 0.06);
-  el(ctx,  r * 0.1, -r * 0.36, r * 0.08, r * 0.06);
+  // Skull decoration on helmet
+  if (!flash) {
+    ctx.fillStyle = '#c0b880';
+    el(ctx, 0, -s*0.68, s*0.12, s*0.12);
+    ctx.fillStyle = '#181828';
+    el(ctx, -s*0.05,-s*0.64, s*0.03, s*0.04);
+    el(ctx,  s*0.05,-s*0.64, s*0.03, s*0.04);
+    rr(ctx, -s*0.06,-s*0.58, s*0.12, s*0.04, 2);
+  }
+  // Green skin face visible below helmet
+  ctx.fillStyle = hex(flash, '#3a7020');
+  rr(ctx, -s*0.4, -s*0.48, s*0.8, s*0.38, 5);
+  // Heavy brow
+  ctx.fillStyle = hex(flash, '#1e4a0a');
+  rr(ctx, -s*0.4, -s*0.5, s*0.8, s*0.1, 4);
+
+  // ── TUSKS — bigger and more savage than regular Orks ──
+  ctx.fillStyle = hex(flash, '#e0d090');
+  ctx.beginPath(); ctx.moveTo(-s*0.24,-s*0.3); ctx.lineTo(-s*0.42,-s*0.04); ctx.lineTo(-s*0.16,-s*0.08); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo( s*0.24,-s*0.3); ctx.lineTo( s*0.42,-s*0.04); ctx.lineTo( s*0.16,-s*0.08); ctx.closePath(); ctx.fill();
+
+  // ── Eyes ──
+  glow(ctx, '#ff4000', flash ? 0 : 12, () => {
+    ctx.fillStyle = hex(flash, '#ff4000');
+    el(ctx, -s*0.22, -s*0.42, s*0.1, s*0.1);
+    el(ctx,  s*0.22, -s*0.42, s*0.1, s*0.1);
+  });
+  ctx.fillStyle = '#000';
+  el(ctx, -s*0.22,-s*0.42, s*0.04, s*0.04);
+  el(ctx,  s*0.22,-s*0.42, s*0.04, s*0.04);
 }

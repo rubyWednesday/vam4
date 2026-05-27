@@ -81,41 +81,37 @@ export class Bolter extends BaseWeapon {
 }
 
 // ============================================================
-// Power Sword — arc sweep left+right
+// Power Sword — 360° close-range sweep around player
+// Bug fix: original side-arc logic missed enemies charging head-on.
+// Now damages all enemies within range, plays two visual slashes.
 // ============================================================
 export class PowerSword extends BaseWeapon {
   constructor(game) { super('powerSword', game); }
 
   fire(player, enemies) {
-    const { dmg, arc, range } = this.stats;
+    const { dmg, range } = this.stats;
     const baseDmg = dmg * player.damageMult;
 
+    // Two visual slashes (left + right side arcs)
     for (const side of ['left', 'right']) {
-      // Visual slash
-      const slash = this.game.pools.slashes.acquire(
-        player.x, player.y, player.facing, range, arc, side
+      this.game.pools.slashes.acquire(
+        player.x, player.y, player.facing, range, this.stats.arc, side
       );
+    }
 
-      // Hit all enemies in the arc — iterate a snapshot so splice is safe
-      const baseAngle = Math.atan2(player.facing.y, player.facing.x) +
-                        (side === 'left' ? -1 : 1) * Math.PI/2;
-      const halfArc = (arc / 2) * (Math.PI / 180);
-
-      for (const e of [...enemies]) {
-        if (!e.active) continue;
-        const ex = e.x - player.x, ey = e.y - player.y;
-        const d  = Math.sqrt(ex*ex + ey*ey);
-        if (d > range + e.radius) continue;
-        const ang = Math.atan2(ey, ex);
-        let diff = ang - baseAngle;
-        while (diff >  Math.PI) diff -= Math.PI*2;
-        while (diff < -Math.PI) diff += Math.PI*2;
-        if (Math.abs(diff) <= halfArc) {
-          const died = e.takeDamage(baseDmg);
-          this.game.pools.floatText.acquire(e.x, e.y, Math.floor(baseDmg).toString(), '#00BFFF', 13);
-          if (died) this.game.onEnemyDeath(e);
-        }
-      }
+    // Damage all enemies within range — simple circle, iterate snapshot
+    const hitSet = new Set();
+    for (const e of [...enemies]) {
+      if (!e.active || hitSet.has(e)) continue;
+      const dx = e.x - player.x, dy = e.y - player.y;
+      const d  = Math.sqrt(dx * dx + dy * dy);
+      if (d > range + e.radius) continue;
+      hitSet.add(e);
+      const died = e.takeDamage(baseDmg);
+      this.game.pools.floatText.acquire(
+        e.x, e.y - e.radius, Math.floor(baseDmg).toString(), '#00BFFF', 13
+      );
+      if (died) this.game.onEnemyDeath(e);
     }
   }
 }
