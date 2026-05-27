@@ -19,17 +19,27 @@ export class ObjectPool {
   acquire(...args) {
     const obj = this._free.length ? this._free.pop() : this._factory();
     this._reset(obj, ...args);
+    obj._poolIdx = this.active.length;   // O(1) index tracking
     this.active.push(obj);
     return obj;
   }
 
-  /** Return a single object to the free list. */
+  /**
+   * Return a single object to the free list.
+   * O(1): swap with last element then pop — no indexOf or splice needed.
+   */
   release(obj) {
-    const idx = this.active.indexOf(obj);
-    if (idx !== -1) {
-      this.active.splice(idx, 1);
-      this._free.push(obj);
+    const idx = obj._poolIdx;
+    if (idx === undefined || idx < 0) return;   // already released / not in pool
+    const last = this.active.length - 1;
+    if (idx !== last) {
+      const tail  = this.active[last];
+      this.active[idx] = tail;
+      tail._poolIdx = idx;
     }
+    this.active.pop();
+    obj._poolIdx = -1;
+    this._free.push(obj);
   }
 
   /**

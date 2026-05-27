@@ -375,13 +375,16 @@ export class Game {
     // ---- Update XP Gems ----
     this.pools.xpGems.updateAll((gem, _) => {
       if (!gem.active) { this.pools.xpGems.release(gem); return; }
+      // Once a level-up is triggered this frame, stop collecting more gems
+      // until the player picks an upgrade (prevents skipped level-up choices).
+      if (this.state !== 'playing') return;
       const collected = gem.update(dt, this.player);
       if (collected) {
         const leveled = this.player.addXp(gem.value);
         if (leveled) {
           this.pools.floatText.acquire(
             this.player.x, this.player.y - 40,
-            `LEVEL UP!`, '#FFD700', 20
+            'LEVEL UP!', '#FFD700', 20
           );
           this.levelUpOptions = buildLevelUpOptions(this.player);
           this.hoveredCard    = 0;
@@ -525,10 +528,16 @@ export class Game {
   start() {
     let lastTime = 0;
     const loop = (timestamp) => {
-      const dt = Math.min((timestamp - lastTime) / 1000, 0.05); // cap at 50ms
-      lastTime = timestamp;
-      this.update(dt);
-      this.render();
+      try {
+        const dt = Math.min((timestamp - lastTime) / 1000, 0.05); // cap at 50ms
+        lastTime = timestamp;
+        this.update(dt);
+        this.render();
+      } catch (err) {
+        // Log the error but keep the loop alive so the screen doesn't freeze.
+        console.error('[WH40K Survivors] Game loop error:', err);
+        lastTime = timestamp; // prevent dt spike on next frame
+      }
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);

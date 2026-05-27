@@ -140,12 +140,14 @@ export function buildLevelUpOptions(player) {
     }
   }
 
-  // Always have at least 4 options — pad with "Heal 30HP" if needed
-  if (options.length < 2) {
-    options.push({ type: 'heal', id: 'heal', data: {
-      name: 'Emperor\'s Grace', desc: 'Restore 30 HP. The Emperor\'s mercy upon you.', color: '#e74c3c',
-    }});
-  }
+  // Ensure at least 3 choices are always available (pad with recovery options)
+  const FALLBACK_HEALS = [
+    { type: 'heal', id: 'heal', data: { name: "Emperor's Grace", desc: "Restore 30 HP. The Emperor's mercy is upon you.",   color: '#e74c3c' }},
+    { type: 'heal', id: 'heal', data: { name: 'Holy Relic',      desc: 'Restore 30 HP. A blessed artefact of the Chapter.', color: '#c0392b' }},
+    { type: 'heal', id: 'heal', data: { name: 'Medicae Pack',    desc: 'Restore 30 HP. The Medicae attends to your wounds.', color: '#e91e63' }},
+  ];
+  let fi = 0;
+  while (options.length < 3) options.push(FALLBACK_HEALS[fi++ % FALLBACK_HEALS.length]);
 
   shuffle(options);
   return options.slice(0, 4);
