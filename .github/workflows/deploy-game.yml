@@ -1,0 +1,24 @@
+name: Deploy WH40K Survivors to GitHub Pages
+
+on:
+  push:
+    branches: [ch02-03, main]
+    paths:
+      - 'wh40k-survivors/**'
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./wh40k-survivors
+          publish_branch: gh-pages
+          force_orphan: true
