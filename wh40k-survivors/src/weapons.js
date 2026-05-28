@@ -191,6 +191,7 @@ export class HeavyFlamer extends BaseWeapon {
     const dd  = Math.sqrt(ddx*ddx + ddy*ddy) || 1;
     const fx  = ddx/dd, fy = ddy/dd;
 
+    let textCount = 0;
     for (const e of [...enemies]) {
       if (!e.active) continue;
       const ex = e.x - player.x, ey = e.y - player.y;
@@ -199,7 +200,7 @@ export class HeavyFlamer extends BaseWeapon {
       const dot = (ex/d)*fx + (ey/d)*fy;
       if (dot < Math.cos(halfRad)) continue;
       const died = e.takeDamage(baseDmg, fx*120, fy*120);
-      this.game.pools.floatText.acquire(e.x, e.y - e.radius, Math.floor(baseDmg).toString(), '#FF6600', 12);
+      if (textCount < 5) { this.game.pools.floatText.acquire(e.x, e.y - e.radius, Math.floor(baseDmg).toString(), '#FF6600', 12); textCount++; }
       if (died) this.game.onEnemyDeath(e);
     }
 
@@ -230,11 +231,12 @@ export class Lascannon extends BaseWeapon {
     const ex  = player.x + fx * range;
     const ey  = player.y + fy * range;
 
+    let textCount = 0;
     for (const e of [...enemies]) {
       if (!e.active) continue;
       if (_distToSeg(e.x, e.y, player.x, player.y, ex, ey) < width + e.radius) {
         const died = e.takeDamage(baseDmg, fx*280, fy*280);
-        this.game.pools.floatText.acquire(e.x, e.y - e.radius, Math.floor(baseDmg).toString(), '#FF3333', 14);
+        if (textCount < 5) { this.game.pools.floatText.acquire(e.x, e.y - e.radius, Math.floor(baseDmg).toString(), '#FF3333', 14); textCount++; }
         if (died) this.game.onEnemyDeath(e);
       }
     }

@@ -217,11 +217,14 @@ export class XpGem {
     this.vy     = 0;
     this.radius = 5 + Math.min(value * 0.5, 6);
     this.angle  = Math.random() * Math.PI * 2;
+    this.life   = 18;
     return this;
   }
 
   update(dt, player) {
     if (!this.active) return false;
+    this.life -= dt;
+    if (this.life <= 0) { this.active = false; return false; }
     this.angle += dt * 2;
     const d2 = distSq(this.x, this.y, player.x, player.y);
     const mag2 = player.magnetRange ** 2;
@@ -246,6 +249,7 @@ export class XpGem {
 
   draw(ctx, camera) {
     if (!this.active) return;
+    if (!camera.isVisible(this.x, this.y, this.radius + 6)) return;
     const { x, y } = camera.toScreen(this.x, this.y);
     const r = this.radius;
 
