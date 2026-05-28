@@ -9,6 +9,7 @@ import {
 import {
   Player, Enemy, XpGem, Projectile, DamageField,
   Explosion, FloatingText, GrenadeProjectile, SwordSlash,
+  FlameJet, LaserBeam,
 } from './entities.js';
 import { Bolter, createWeapon } from './weapons.js';
 import {
@@ -90,7 +91,9 @@ export class Game {
       explosions:  new ObjectPool(() => new Explosion(),    (obj, x, y, r, c) => obj.init(x,y,r,c), 40),
       floatText:   new ObjectPool(() => new FloatingText(), (obj, x, y, t, c, s) => obj.init(x,y,t,c,s), 80),
       grenades:    new ObjectPool(() => new GrenadeProjectile(), (obj,sx,sy,tx,ty,d,data) => obj.init(sx,sy,tx,ty,d,data), 20),
-      slashes:     new ObjectPool(() => new SwordSlash(),   (obj,px,py,f,rng,arc,side) => obj.init(px,py,f,rng,arc,side), 20),
+      slashes:     new ObjectPool(() => new SwordSlash(),   (obj,px,py,f,rng,arc,side,inten) => obj.init(px,py,f,rng,arc,side,inten), 20),
+      flameJets:   new ObjectPool(() => new FlameJet(),     (obj,px,py,fx,fy,rng,half,inten) => obj.init(px,py,fx,fy,rng,half,inten), 20),
+      laserBeams:  new ObjectPool(() => new LaserBeam(),    (obj,sx,sy,ex,ey,w,inten) => obj.init(sx,sy,ex,ey,w,inten), 20),
     };
 
     // Alias for weapon code
@@ -406,6 +409,18 @@ export class Game {
       s.update(dt);
     });
 
+    // ---- Update FlameJets ----
+    this.pools.flameJets.updateAll((fj, _) => {
+      if (!fj.active) { this.pools.flameJets.release(fj); return; }
+      fj.update(dt);
+    });
+
+    // ---- Update LaserBeams ----
+    this.pools.laserBeams.updateAll((lb, _) => {
+      if (!lb.active) { this.pools.laserBeams.release(lb); return; }
+      lb.update(dt);
+    });
+
     // ---- Update Floating Text ----
     this.pools.floatText.updateAll((ft, _) => {
       if (!ft.active) { this.pools.floatText.release(ft); return; }
@@ -460,12 +475,16 @@ export class Game {
     for (const e of this.pools.enemies.active)      e.draw(ctx, this.camera);
     // Slashes
     for (const s of this.pools.slashes.active)      s.draw(ctx, this.camera);
+    // Flame jets (on top of player and enemies)
+    for (const fj of this.pools.flameJets.active)   fj.draw(ctx, this.camera);
     // Player
     this.player.draw(ctx, this.camera);
     // Grenade arcs
     for (const g of this.pools.grenades.active)     g.draw(ctx, this.camera);
     // Projectiles
     for (const p of this.pools.projectiles.active)  p.draw(ctx, this.camera);
+    // Laser beams
+    for (const lb of this.pools.laserBeams.active)  lb.draw(ctx, this.camera);
     // Explosions
     for (const e of this.pools.explosions.active)   e.draw(ctx, this.camera);
     // Floating texts

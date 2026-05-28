@@ -93,6 +93,22 @@ function dropShadow(ctx, r) {
   ctx.fill();
 }
 
+// 모서리 둥근 직사각형 path (beginPath 포함)
+function _rrect(ctx, x, y, w, h, rad) {
+  const r = Math.min(rad, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
 // ============================================================
 // SPACE MARINE  —  레퍼런스 이미지(assets/marine.png) 직접 렌더링
 //
@@ -125,7 +141,8 @@ export function drawSpaceMarine(ctx, r, flash) {
 }
 
 // ── 오크 이미지 로더 ─────────────────────────────────────────
-// 배경색(좌상단 픽셀 기준) 자동 제거, CORS 실패 시 원본 그대로.
+// assets/ork1.png, ork2.png 는 오프라인 BFS 배경 제거로 이미 투명 채널 포함.
+// 런타임 배경 제거 불필요 — 그냥 로드해서 drawImage 에 사용.
 function _loadOrkImage(src) {
   const cv = document.createElement('canvas');
   cv._ready = false;
@@ -135,18 +152,6 @@ function _loadOrkImage(src) {
     cv.height = img.naturalHeight;
     const c = cv.getContext('2d');
     c.drawImage(img, 0, 0);
-    try {
-      const id   = c.getImageData(0, 0, cv.width, cv.height);
-      const data = id.data;
-      const bgR  = data[0], bgG = data[1], bgB = data[2];
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i], g = data[i+1], b = data[i+2];
-        if (Math.abs(r-bgR)+Math.abs(g-bgG)+Math.abs(b-bgB) < 90) data[i+3] = 0;
-      }
-      c.putImageData(id, 0, 0);
-    } catch (e) {
-      console.warn('[sprites] 배경 제거 실패:', src, e.message);
-    }
     cv._ready = true;
   };
   img.onerror = () => console.warn('[sprites] 이미지 로드 실패:', src);

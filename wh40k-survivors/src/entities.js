@@ -332,23 +332,51 @@ export class Projectile {
     const { x, y } = camera.toScreen(this.x, this.y);
 
     if (this.homing) {
-      // Plasma orb — glowing circle
-      const grd = ctx.createRadialGradient(x, y, 0, x, y, this.radius*2);
+      // Plasma orb — glowing circle, larger at higher radius
+      const r = this.radius;
+      const grd = ctx.createRadialGradient(x, y, 0, x, y, r * 2.5);
       grd.addColorStop(0, '#FFFFFF');
-      grd.addColorStop(0.3, this.color);
+      grd.addColorStop(0.25, '#FFFFFF');
+      grd.addColorStop(0.5, this.color);
       grd.addColorStop(1, 'rgba(255,107,53,0)');
       ctx.fillStyle = grd;
       ctx.beginPath();
-      ctx.arc(x, y, this.radius*2, 0, Math.PI*2);
+      ctx.arc(x, y, r * 2.5, 0, Math.PI*2);
       ctx.fill();
+      // Extra outer halo for large plasma (radius >= 13)
+      if (r >= 13) {
+        const halo = ctx.createRadialGradient(x, y, r, x, y, r * 4.5);
+        halo.addColorStop(0, `${this.color}55`);
+        halo.addColorStop(1, 'rgba(255,107,53,0)');
+        ctx.fillStyle = halo;
+        ctx.beginPath();
+        ctx.arc(x, y, r * 4.5, 0, Math.PI*2);
+        ctx.fill();
+      }
     } else {
-      // Bullet — elongated rectangle pointing in velocity direction
+      // Bullet — elongated rectangle, glow scales with radius
       const angle = Math.atan2(this.vy, this.vx);
+      const r = this.radius;
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(angle);
+      if (r >= 8) {
+        // Large bullet: glow halo
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = r * 2.5;
+        const grd = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 3.5);
+        grd.addColorStop(0, 'rgba(255,255,200,0.6)');
+        grd.addColorStop(0.5, `${this.color}66`);
+        grd.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
       ctx.fillStyle = this.color;
-      ctx.fillRect(-8, -this.radius*0.5, 14, this.radius);
+      const len = 8 + r * 1.6;
+      ctx.fillRect(-len * 0.55, -r * 0.5, len, r);
       ctx.restore();
     }
   }
@@ -533,15 +561,16 @@ export class GrenadeProjectile {
 export class SwordSlash {
   constructor() { this.active = false; }
 
-  init(px, py, facing, range, arcDeg, side) {
-    this.x       = px;
-    this.y       = py;
+  init(px, py, facing, range, arcDeg, side, intensity = 0) {
+    this.x         = px;
+    this.y         = py;
     this.baseAngle = Math.atan2(facing.y, facing.x) + (side === 'left' ? -1 : 1) * Math.PI/2;
-    this.range   = range;
-    this.arcRad  = (arcDeg / 2) * (Math.PI/180);
-    this.life    = 0.18;
-    this.maxLife = 0.18;
-    this.active  = true;
+    this.range     = range;
+    this.arcRad    = (arcDeg / 2) * (Math.PI/180);
+    this.intensity = intensity;  // 0–1, scales visual weight
+    this.life      = 0.18;
+    this.maxLife   = 0.18;
+    this.active    = true;
     return this;
   }
 
@@ -553,18 +582,160 @@ export class SwordSlash {
   draw(ctx, camera) {
     if (!this.active) return;
     const { x, y } = camera.toScreen(this.x, this.y);
-    const t = this.life / this.maxLife;
+    const t     = this.life / this.maxLife;
+    const inten = this.intensity;
+    const r     = this.range * (1.2 - t * 0.2);
+
     ctx.save();
-    ctx.globalAlpha = t * 0.75;
+    ctx.globalAlpha = t * (0.75 + inten * 0.2);
     ctx.strokeStyle = '#00BFFF';
-    ctx.lineWidth = 8 * t + 2;
-    ctx.shadowColor = '#00BFFF';
-    ctx.shadowBlur = 15;
+    ctx.lineWidth   = (8 * t + 2) * (1 + inten * 1.8);
+    ctx.shadowColor = inten > 0.5 ? '#AAEEFF' : '#00BFFF';
+    ctx.shadowBlur  = 15 + inten * 30;
     ctx.beginPath();
-    ctx.arc(x, y, this.range * (1.2 - t*0.2),
-            this.baseAngle - this.arcRad,
-            this.baseAngle + this.arcRad);
+    ctx.arc(x, y, r, this.baseAngle - this.arcRad, this.baseAngle + this.arcRad);
     ctx.stroke();
+
+    // Second bright inner arc at high intensity (level 5+)
+    if (inten > 0.5) {
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth   = (3 * t + 1) * inten * 2;
+      ctx.shadowBlur  = 8;
+      ctx.beginPath();
+      ctx.arc(x, y, r * 0.88,
+              this.baseAngle - this.arcRad * 0.65,
+              this.baseAngle + this.arcRad * 0.65);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+// ============================================================
+// FlameJet — visual cone for Heavy Flamer
+// ============================================================
+export class FlameJet {
+  constructor() { this.active = false; }
+
+  init(px, py, fx, fy, range, halfAngle, intensity) {
+    this.x         = px; this.y = py;
+    this.fx        = fx; this.fy = fy;
+    this.range     = range;
+    this.halfAngle = halfAngle;
+    this.intensity = intensity;
+    this.life      = 0.28;
+    this.maxLife   = 0.28;
+    this.active    = true;
+    return this;
+  }
+
+  update(dt) {
+    if (!this.active) return;
+    this.life -= dt;
+    if (this.life <= 0) this.active = false;
+  }
+
+  draw(ctx, camera) {
+    if (!this.active) return;
+    const { x, y } = camera.toScreen(this.x, this.y);
+    const t        = this.life / this.maxLife;
+    const baseAng  = Math.atan2(this.fy, this.fx);
+    const layers   = 3 + Math.floor(this.intensity * 3);
+
+    ctx.save();
+    for (let i = 0; i < layers; i++) {
+      const rFrac = 0.45 + i * 0.18;
+      const r     = this.range * rFrac;
+      const alpha = t * (0.75 - i * 0.1);
+      const grd   = ctx.createRadialGradient(x, y, 0, x, y, r);
+      grd.addColorStop(0,   `rgba(255,255,180,${alpha})`);
+      grd.addColorStop(0.2, `rgba(255,160,0,${alpha * 0.9})`);
+      grd.addColorStop(0.6, `rgba(220,60,0,${alpha * 0.6})`);
+      grd.addColorStop(1,   'rgba(100,0,0,0)');
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.arc(x, y, r, baseAng - this.halfAngle, baseAng + this.halfAngle);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+// ============================================================
+// LaserBeam — visual line for Lascannon
+// ============================================================
+export class LaserBeam {
+  constructor() { this.active = false; }
+
+  init(sx, sy, ex, ey, width, intensity) {
+    this.sx        = sx; this.sy = sy;
+    this.ex        = ex; this.ey = ey;
+    this.width     = width;
+    this.intensity = intensity;
+    this.life      = 0.32;
+    this.maxLife   = 0.32;
+    this.active    = true;
+    return this;
+  }
+
+  update(dt) {
+    if (!this.active) return;
+    this.life -= dt;
+    if (this.life <= 0) this.active = false;
+  }
+
+  draw(ctx, camera) {
+    if (!this.active) return;
+    const start = camera.toScreen(this.sx, this.sy);
+    const end   = camera.toScreen(this.ex, this.ey);
+    const t     = this.life / this.maxLife;
+    const w     = this.width;
+
+    ctx.save();
+    ctx.lineCap = 'round';
+
+    // Outer glow
+    ctx.globalAlpha  = t * 0.35;
+    ctx.strokeStyle  = '#FF4444';
+    ctx.lineWidth    = w * 5 + this.intensity * w * 4;
+    ctx.shadowColor  = '#FF0000';
+    ctx.shadowBlur   = 25 + this.intensity * 20;
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(end.x, end.y);
+    ctx.stroke();
+
+    // Mid beam
+    ctx.globalAlpha = t * 0.85;
+    ctx.strokeStyle = '#FF8800';
+    ctx.lineWidth   = w * 1.5;
+    ctx.shadowBlur  = 0;
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(end.x, end.y);
+    ctx.stroke();
+
+    // Core white
+    ctx.globalAlpha = t;
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth   = Math.max(1.5, w * 0.4);
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(end.x, end.y);
+    ctx.stroke();
+
+    // Muzzle flash
+    ctx.globalAlpha = t * 0.9;
+    const mFlash    = ctx.createRadialGradient(start.x, start.y, 0, start.x, start.y, w * 4);
+    mFlash.addColorStop(0, 'rgba(255,255,200,0.9)');
+    mFlash.addColorStop(1, 'rgba(255,50,0,0)');
+    ctx.fillStyle   = mFlash;
+    ctx.beginPath();
+    ctx.arc(start.x, start.y, w * 4, 0, Math.PI * 2);
+    ctx.fill();
+
     ctx.restore();
   }
 }
