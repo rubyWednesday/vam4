@@ -163,7 +163,7 @@ export function buildLevelUpOptions(player) {
 // Card layout helper (shared with game.js for hit detection)
 // ============================================================
 export function getCardLayout(W, H, n) {
-  const small  = W <= 700;
+  const small  = W <= 900;
   const CARD_W = small ? 140 : 240;
   const CARD_H = small ? 155 : 170;
   const CARD_R = small ? 8   : 12;

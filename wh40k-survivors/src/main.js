@@ -6,10 +6,10 @@ import { CANVAS } from './data.js';
 
 const canvas = document.getElementById('game');
 
-// Mobile: use 640×360 so everything appears 2× larger on small screens
+// Mobile: use 800×450 so everything appears larger without being too big
 if (window.innerWidth < 900 || window.innerHeight < 500) {
-  CANVAS.WIDTH  = 640;
-  CANVAS.HEIGHT = 360;
+  CANVAS.WIDTH  = 800;
+  CANVAS.HEIGHT = 450;
 }
 
 // Responsive sizing: fit to window while preserving aspect ratio
