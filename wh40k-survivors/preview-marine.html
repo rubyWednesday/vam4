@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Space Marine Preview</title>
+  <style>
+    body { background:#1a1a2e; display:flex; flex-wrap:wrap; gap:24px;
+           padding:32px; font-family:monospace; color:#fff; align-items:flex-start; }
+    .box { display:flex; flex-direction:column; align-items:center; gap:8px; }
+    canvas { image-rendering:pixelated; border:1px solid #444; background:#333a55; }
+    label  { font-size:12px; color:#aaa; text-align:center; }
+    h2     { width:100%; color:#ffd700; margin:0 0 4px; font-size:14px; }
+    .ref   { width:120px; border:2px solid #ffd700; }
+  </style>
+</head>
+<body>
+
+<!-- 레퍼런스 이미지 (비교용) -->
+<div class="box">
+  <label>📷 레퍼런스</label>
+  <img class="ref" src="c:/hobbyDoong/sma.png" style="width:120px;image-rendering:pixelated;">
+</div>
+
+<script>
+function pxDraw(ctx, grid, pal, pw) {
+  const cols = grid[0].length, rows = grid.length;
+  const ox = Math.round(-(cols*pw)/2), oy = Math.round(-(rows*pw)/2);
+  for (let y=0;y<rows;y++) for (let x=0;x<grid[y].length;x++) {
+    const c = grid[y][x];
+    if (c==='x'||!pal[c]) continue;
+    ctx.fillStyle = pal[c];
+    ctx.fillRect(ox+x*pw, oy+y*pw, pw, pw);
+  }
+}
+function pxGlow(ctx, grid, pal, pw, keys, color, blur) {
+  const cols=grid[0].length, ox=Math.round(-(cols*pw)/2), oy=Math.round(-(grid.length*pw)/2);
+  ctx.shadowColor=color; ctx.shadowBlur=blur;
+  for (let y=0;y<grid.length;y++) for (let x=0;x<grid[y].length;x++) {
+    const c=grid[y][x];
+    if (!keys.includes(c)||!pal[c]) continue;
+    ctx.fillStyle=pal[c];
+    ctx.fillRect(ox+x*pw, oy+y*pw, pw, pw);
+  }
+  ctx.shadowBlur=0; ctx.shadowColor='transparent';
+}
+
+// ── 팔레트 ─────────────────────────────────────────────────────
+const PAL = {
+  k:'#050e20', b:'#0b31ad', B:'#2855d4', v:'#00ff88', g:'#030a18',
+  c:'#c9a227', n:'#1a1a1a', R:'#cc2200', w:'#ddddcc'
+};
+const PAL_F = {
+  k:'#7788bb', b:'#aabbff', B:'#ccdeff', v:'#ccffee', g:'#556699',
+  c:'#ffee88', n:'#888888', R:'#ff9988', w:'#ffffff'
+};
+
+// ── 스프라이트 그리드 ───────────────────────────────────────────
+const GRID = [
+  'xxxxkRRRRkxxxx',  //  0  챕터 배지 (R=빨강)
+  'xxxxkBBBBkxxxx',  //  1  헬멧 크라운 (B=윗면)
+  'xxxkBBBBBBkxxx',  //  2  헬멧 돔
+  'xxxkbbbbvvkxxx',  //  3  눈 렌즈 오른쪽(v=글로우)
+  'xxxkbbggggkxxx',  //  4  페이스 그릴 오른쪽 편중
+  'xxxxkbbbbkxxxx',  //  5  턱 피스
+  'kkBBBBBBBBBBkk',  //  6  파우달론 전폭 상단 (B=윗면)
+  'kbwbbbbbbbbbbk',  //  7  파우달론 + 챕터마크 (w=흰색)
+  'kbbbbbbbbbbbbk',  //  8  파우달론 하단
+  'xkbbbbbbbbknnx',  //  9  흉부 + 볼터 (n=건메탈)
+  'xkbbcbbbbcknnx',  // 10  흉부 아퀼라 날개 (c) + 볼터
+  'xkbbbbbbbbknnx',  // 11  하단 흉부 + 볼터 배럴
+  'xxkbbbbbbbkxxx',  // 12  허리
+  'xxxkbbxbbkxxxx',  // 13  다리
+  'xxxkbbxbbkxxxx',  // 14  그리브
+  'xxxxkbxbkxxxxx',  // 15  부츠
+];
+
+// ── 렌더 ───────────────────────────────────────────────────────
+function render(label, r, flash) {
+  const pw  = Math.max(2, Math.round(r * 0.24));
+  const cols = GRID[0].length, rows = GRID.length;
+  const W = cols*pw + 16, H = rows*pw + 16;
+
+  const box = document.createElement('div'); box.className='box';
+  const lbl = document.createElement('label'); lbl.textContent = label;
+  const cv  = document.createElement('canvas');
+  cv.width=W; cv.height=H;
+  box.appendChild(lbl); box.appendChild(cv); document.body.appendChild(box);
+
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle='#333a55'; ctx.fillRect(0,0,W,H);
+
+  // 그림자
+  ctx.fillStyle='rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(W/2, H/2+r*0.85, r*0.65, r*0.18, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.save(); ctx.translate(W/2, H/2);
+  const p = flash ? PAL_F : PAL;
+  if (!flash) pxGlow(ctx, GRID, p, pw, 'v', '#00ff88', pw*4);
+  pxDraw(ctx, GRID, p, pw);
+  ctx.restore();
+}
+
+render('r=14 (게임 실제크기)', 14, false);
+render('r=20 (확대 미리보기)', 20, false);
+render('r=28 (더 크게)',       28, false);
+render('r=20 히트플래시',       20, true);
+</script>
+</body>
+</html>

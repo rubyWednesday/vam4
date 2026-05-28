@@ -1,11 +1,43 @@
 // ============================================================
-// sprites.js  —  Pixel-art character sprites
-// Warhammer Survivors 레퍼런스 스타일: fillRect 기반 픽셀아트
-//
-// 렌더링: ctx.fillRect 만 사용 (곡선 없음) → 선명한 픽셀아트 느낌
-// 모든 스프라이트 오른쪽 방향. 왼쪽은 caller ctx.scale(-1,1).
-// (0,0) 기준 중앙 정렬.
+// sprites.js  —  Character sprites
+// 스페이스 마린: 레퍼런스 이미지(assets/marine.png) 직접 사용
+//   · 배경색(top-left 픽셀 기준) 자동 제거
+//   · ctx.scale(-1,1) 로 방향 전환 (entities.js 처리)
+// 나머지 캐릭터: fillRect 기반 픽셀아트
 // ============================================================
+
+// ── 스페이스 마린 이미지 로드 + 배경 제거 ──────────────────────
+const _marineCanvas = document.createElement('canvas');
+let   _marineReady  = false;
+
+(function loadMarine() {
+  const img = new Image();
+  img.onload = () => {
+    const W = img.naturalWidth, H = img.naturalHeight;
+    _marineCanvas.width  = W;
+    _marineCanvas.height = H;
+    const c  = _marineCanvas.getContext('2d');
+    c.drawImage(img, 0, 0);
+
+    const id   = c.getImageData(0, 0, W, H);
+    const data = id.data;
+
+    // 좌상단 픽셀 = 배경색 기준
+    const bgR = data[0], bgG = data[1], bgB = data[2];
+
+    for (let i = 0; i < data.length; i += 4) {
+      const dr = Math.abs(data[i]   - bgR);
+      const dg = Math.abs(data[i+1] - bgG);
+      const db = Math.abs(data[i+2] - bgB);
+      // 배경색에 가까운 픽셀 투명 처리 (허용 오차 90)
+      if (dr + dg + db < 90) data[i + 3] = 0;
+    }
+    c.putImageData(id, 0, 0);
+    _marineReady = true;
+  };
+  img.onerror = () => console.warn('[sprites] marine.png 로드 실패');
+  img.src = './assets/marine.png';
+})();
 
 // ── 픽셀아트 엔진 ─────────────────────────────────────────────
 // grid : 문자열 배열 (모든 행 동일 길이, 'x' = 투명)
@@ -53,56 +85,33 @@ function dropShadow(ctx, r) {
 }
 
 // ============================================================
-// SPACE MARINE  (r ≈ 14)
-// 16칸 × 20행  pw = r * 0.22  — 레퍼런스(Warhammer Survivors) 스타일
+// SPACE MARINE  —  레퍼런스 이미지(assets/marine.png) 직접 렌더링
 //
-// 시점: 3/4 탑다운 (살짝 위에서 내려다봄)
-//   → 헬멧·파우달론 윗면이 B(밝은 블루)로 하이라이트
-//   → 볼터가 몸통의 40% 높이로 크고 두드러짐
-//   → 파우달론이 화면 전폭을 차지해 땅딸막한 실루엣
-//
-// 팔레트:
-//   k = 아웃라인   #050e20
-//   b = 울트라마린 블루  #0b31ad
-//   B = 탑면 하이라이트  #2855d4  (위서 빛 받는 윗면)
-//   v = 바이저 렌즈 초록 (글로우)
-//   g = 페이스 그릴 (어두운 슬릿)
-//   c = 골드 (아퀼라 + 챕터마크)
-//   n = 볼터 건메탈
+// 이미지가 로드되면 배경 제거 후 ctx.drawImage 로 그림.
+// 로드 전 또는 실패 시 단색 실루엣 폴백.
+// flash: CSS filter brightness 로 흰 플래시 연출.
 // ============================================================
 export function drawSpaceMarine(ctx, r, flash) {
   dropShadow(ctx, r);
-  const pw  = Math.max(2, Math.round(r * 0.22));
-  const pal = flash
-    ? { k:'#7788bb', b:'#aabbff', B:'#ccdeff', v:'#ccffee', g:'#556699', c:'#ffee88', n:'#888888' }
-    : { k:'#050e20', b:'#0b31ad', B:'#2855d4', v:'#00ff88', g:'#030a18', c:'#c9a227', n:'#1a1a1a' };
 
-  // 모든 행 16글자 고정
-  const grid = [
-    'xxxxxkBBBBkxxxxx',  //  0  헬멧 크라운 (B = 위에서 빛 닿는 윗면)
-    'xxxxkBBBBBBkxxxx',  //  1  헬멧 돔 상면 — 3/4뷰 하이라이트
-    'xxxxkvvbbvvkxxxx',  //  2  눈 렌즈 ×2 (v = 초록 글로우)
-    'xxxxkbbbbbbkxxxx',  //  3  노즈가드
-    'xxxxkggggggkxxxx',  //  4  페이스 그릴 (어두운 슬릿)
-    'xxxxkggggggkxxxx',  //  5  하단 그릴
-    'xxxxxkbbbbkxxxxx',  //  6  턱 피스
-    'xxkBBBBBBBBBBkxx',  //  7  고르겟 + 파우달론 상면 하이라이트
-    'kkBBBBBBBBBBBBkk',  //  8  파우달론 전폭 — 위에서 본 윗면
-    'kbbbbcbbbbbbbbbk',  //  9  파우달론 하단 + 챕터마크 (c = 골드)
-    'kbbbbbbbbbbbbbbk',  // 10  파우달론 / 상단 흉부 연결
-    'xkbbcbbbcbbknnxx',  // 11  흉부 아퀼라 날개 (c) + 볼터 시작
-    'xkbbbbcbbbbknnxx',  // 12  흉부 아퀼라 본체 + 볼터
-    'xkbbbbbbbbbknnxx',  // 13  하단 흉부 + 볼터 배럴
-    'xxkbbbbbbbbknnxx',  // 14  복부 + 볼터 (계속)
-    'xxxkbbbbbbbkxxxx',  // 15  허리 (볼터 끝)
-    'xxxxkbbbbbkxxxxx',  // 16  코드 플레이트
-    'xxxkbbbxxbbbkxxx',  // 17  상단 다리 (두 다리 분리)
-    'xxxkbbbxxbbbkxxx',  // 18  그리브
-    'xxkbbbbxxbbbbkxx',  // 19  부츠 (다리보다 넓음)
-  ];
+  if (!_marineReady) {
+    // 폴백: 이미지 로드 전 파란 원 실루엣
+    ctx.fillStyle = flash ? '#aabbff' : '#0b31ad';
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    return;
+  }
 
-  if (!flash) pxGlow(ctx, grid, pal, pw, 'v', '#00ff88', pw * 4);
-  pxDraw(ctx, grid, pal, pw);
+  // 캐릭터 높이를 r * 2.8 에 맞춰 스케일
+  const scale = (r * 2.8) / _marineCanvas.height;
+  const dw = _marineCanvas.width  * scale;
+  const dh = _marineCanvas.height * scale;
+
+  if (flash) {
+    // 흰색 플래시: 원본을 밝게
+    ctx.filter = 'brightness(4) saturate(0.2)';
+  }
+  ctx.drawImage(_marineCanvas, -dw / 2, -dh / 2, dw, dh);
+  ctx.filter = 'none';
 }
 
 // ============================================================
