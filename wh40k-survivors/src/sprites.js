@@ -124,176 +124,170 @@ export function drawSpaceMarine(ctx, r, flash) {
   ctx.filter = 'none';
 }
 
+// ── 오크 이미지 로더 ─────────────────────────────────────────
+// 배경색(좌상단 픽셀 기준) 자동 제거, CORS 실패 시 원본 그대로.
+function _loadOrkImage(src) {
+  const cv = document.createElement('canvas');
+  cv._ready = false;
+  const img = new Image();
+  img.onload = () => {
+    cv.width  = img.naturalWidth;
+    cv.height = img.naturalHeight;
+    const c = cv.getContext('2d');
+    c.drawImage(img, 0, 0);
+    try {
+      const id   = c.getImageData(0, 0, cv.width, cv.height);
+      const data = id.data;
+      const bgR  = data[0], bgG = data[1], bgB = data[2];
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i+1], b = data[i+2];
+        if (Math.abs(r-bgR)+Math.abs(g-bgG)+Math.abs(b-bgB) < 90) data[i+3] = 0;
+      }
+      c.putImageData(id, 0, 0);
+    } catch (e) {
+      console.warn('[sprites] 배경 제거 실패:', src, e.message);
+    }
+    cv._ready = true;
+  };
+  img.onerror = () => console.warn('[sprites] 이미지 로드 실패:', src);
+  img.src = src;
+  return cv;
+}
+
+// ork1.png (210×158) → Ork Boy (r≈13)
+// ork2.png (232×227) → Nob     (r≈17)
+const _ork1Canvas = _loadOrkImage('./assets/ork1.png');
+const _ork2Canvas = _loadOrkImage('./assets/ork2.png');
+
+/**
+ * 오크 이미지 공통 렌더
+ *   dh = r * M  (M 배율로 시각적 높이 결정; 이미지 원본 해상도 무관)
+ */
+function _drawOrkImage(ctx, orkCv, r, flash, M) {
+  dropShadow(ctx, r);
+  if (!orkCv._ready) {
+    ctx.fillStyle = flash ? '#88dd88' : '#3a8022';
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    return;
+  }
+  const scale = (r * M) / orkCv.height;
+  const dw    = orkCv.width  * scale;
+  const dh    = orkCv.height * scale;
+  if (flash) ctx.filter = 'brightness(4) saturate(0.2)';
+  ctx.drawImage(orkCv, -dw / 2, -dh / 2, dw, dh);
+  ctx.filter = 'none';
+}
+
 // ============================================================
-// HORMAGAUNT  (r ≈ 8)
-// 13칸 × 11행  pw = r * 0.36
+// GRETCHIN  (r ≈ 8)
+// 11칸 × 12행  pw = r * 0.36
 //
-// 핵심 실루엣:
-//   오른쪽으로 크게 돌출한 낫 블레이드
-//   왼쪽에 꼬리, 낮은 포복 자세
+// 오크 하수인 — 작고 빠른 잡졸
+//   크고 뾰족한 귀, 노란 눈(글로우), 꼽추 자세
+//   오른손에 조잡한 스텁건(n=건메탈)
 //
-// k=외곽 p=퍼플몸통 b=뼈낫 e=눈(빨강 글로우)
+// k=아웃라인  g=초록 피부  e=눈(노란 글로우)
+// b=갈색 누더기  n=건메탈  t=이빨
 // ============================================================
 export function drawHormagaunt(ctx, r, flash) {
   dropShadow(ctx, r);
   const pw  = Math.max(2, Math.round(r * 0.36));
   const pal = flash
-    ? { k:'#ccaadd', p:'#ddbbee', b:'#eeddaa', e:'#ffaaaa' }
-    : { k:'#18062a', p:'#5a1878', b:'#d0c070', e:'#ff1010' };
+    ? { k:'#88bb88', g:'#aaddaa', e:'#eeffaa', b:'#ccaa88', n:'#aaaacc', t:'#eeeebb' }
+    : { k:'#0a0a08', g:'#3a8022', e:'#c8e000', b:'#5a3010', n:'#1a1a22', t:'#c0c0a0' };
 
-  // 모든 행 13글자 고정
+  // 모든 행 11글자 고정
   const grid = [
-    'xkpkxxxxxxxxx', // 0 꼬리 (뒤)
-    'xkppkxxxxxxxx', // 1 꼬리/상체
-    'xkppkxxkbbxxx', // 2 상체 + 낫 시작
-    'xkepkxxxkbbkx', // 3 눈(e) + 낫날
-    'xkppkxxxxkbbk', // 4 몸통 + 낫날 최대
-    'xkppppkxxxxxx', // 5 배
-    'xkppppkxxxxxx', // 6 배
-    'xkpxxpkxxxxxx', // 7 다리
-    'xkpxxpkxxxxxx', // 8 다리
-    'xkbxxbkxxxxxx', // 9 발톱
-    'xxxxxxxxxxxxx', //10 패딩
+    'kgkxxxxxkgk',  //  0: 뾰족한 귀 끝
+    'kggkxxxkggk',  //  1: 귀
+    'xkgggggggkx',  //  2: 두상 상단
+    'xkggeegggkx',  //  3: 눈 (e=노란 글로우)
+    'xkgggggggkx',  //  4: 뺨
+    'xkgktttkgkx',  //  5: 이빨
+    'xxkbbbbbkxx',  //  6: 토르소 (누더기)
+    'xkgbbbbgnkx',  //  7: 팔 + 무기(n)
+    'xxkgbbgnnnx',  //  8: 손 + 무기 손잡이
+    'xxxkgkgnnnx',  //  9: 다리 + 무기 날
+    'xxxkbkbkxxx',  // 10: 발
+    'xxxxxxxxxxx',  // 11: 패딩
   ];
 
-  if (!flash) pxGlow(ctx, grid, pal, pw, 'e', '#ff0000', pw * 5);
+  if (!flash) pxGlow(ctx, grid, pal, pw, 'e', '#c8e000', pw * 5);
   pxDraw(ctx, grid, pal, pw);
 }
 
 // ============================================================
 // ORK BOY  (r ≈ 13)
-// 12칸 × 13행  pw = r * 0.27
-//
-// 핵심 실루엣:
-//   행0-5: 두상 (10칸 넓이, 몸통보다 넓음!)
-//   행6: 목 (좁아짐)
-//   행7-9: 아머 가슴
-//   행10-12: 다리
-//   찹파: 오른쪽 위로 돌출
-//
-// k=외곽 g=초록피부 a=아머 t=엄니 e=눈(빨강 글로우) c=찹파 w=날빛
+// 레퍼런스 이미지 ork1.png 직접 렌더링  (dh = r × 4.5 ≈ 58px)
 // ============================================================
 export function drawOrkBoy(ctx, r, flash) {
-  dropShadow(ctx, r);
-  const pw  = Math.max(2, Math.round(r * 0.27));
-  const pal = flash
-    ? { k:'#668866', g:'#aaddaa', a:'#999999', t:'#eeeecc', e:'#ffbbaa', c:'#ccaa88', w:'#eeeeee' }
-    : { k:'#0a1a08', g:'#3d8522', a:'#1e1e2e', t:'#e2d292', e:'#ff2000', c:'#7a3a10', w:'#c8c8d0' };
-
-  // 모든 행 12글자 고정
-  const grid = [
-    'xkggggggkxxx', // 0 두상 상단
-    'kggggggggkxx', // 1 두상 (10칸 — 매우 넓음!)
-    'kggggggggkcx', // 2 두상 + 찹파
-    'kgekgggekwcx', // 3 눈(e) + 찹파날(w)
-    'kgkkkkkgkxxx', // 4 두꺼운 눈썹
-    'xkgttttgkxxx', // 5 엄니(t)
-    'xxkggggkxxxx', // 6 목 (좁아짐)
-    'xxkaaaaakxxx', // 7 아머
-    'xxkaaaaakxxx', // 8 아머
-    'xxxkaaakxxxx', // 9 허리
-    'xxxkgxgkxxxx', //10 다리
-    'xxxkgxgkxxxx', //11 다리
-    'xxxkaxakxxxx', //12 부츠
-  ];
-
-  if (!flash) pxGlow(ctx, grid, pal, pw, 'e', '#ff3300', pw * 4);
-  pxDraw(ctx, grid, pal, pw);
+  _drawOrkImage(ctx, _ork1Canvas, r, flash, 4.5);
 }
 
 // ============================================================
-// TYRANID WARRIOR  (r ≈ 17)
-// 14칸 × 14행  pw = r * 0.23
-//
-// 핵심 실루엣:
-//   두개골 크레스트 (왼쪽 위로 뻗음)
-//   낫팔 (오른쪽으로 돌출)
-//   청록 눈 글로우
-//
-// k=외곽 p=퍼플몸통 s=카라파스 b=뼈낫 e=눈(청록 글로우)
+// NOB  (r ≈ 17)
+// 레퍼런스 이미지 ork2.png 직접 렌더링  (dh = r × 4.5 ≈ 76px)
 // ============================================================
 export function drawTyranidWarrior(ctx, r, flash) {
-  dropShadow(ctx, r);
-  const pw  = Math.max(2, Math.round(r * 0.23));
-  const pal = flash
-    ? { k:'#bbaacc', p:'#ddccee', s:'#ccbbdd', b:'#ddccaa', e:'#aaeeff' }
-    : { k:'#10081e', p:'#2d1245', s:'#4a2068', b:'#d0c888', e:'#00ddff' };
-
-  // 모든 행 14글자 고정
-  const grid = [
-    'kppkxxxxxxxxxx', // 0 두개골 크레스트 (뒤로 돌출)
-    'xkppkxxxxxxxxx', // 1 크레스트
-    'xxkspkxxxxxbxx', // 2 머리 + 낫 시작
-    'xxkepkxxxxkbbx', // 3 눈(e) + 낫날
-    'xxkpppkxxxkbbk', // 4 머리/목 + 낫날 최대
-    'xxxkpppkxxxxxk', // 5 목
-    'xxkpppppkxxxxx', // 6 흉부
-    'xkssppppsskxxx', // 7 카라파스 (넓음)
-    'xxkppppppkxxxx', // 8 복부
-    'xxxkppkkpkxxxx', // 9 다리 분기
-    'xxxkpkxxkpkxxx', //10 다리
-    'xxxkpkxxkpkxxx', //11 다리
-    'xxxkbkxxkbkxxx', //12 발톱
-    'xxxxxxxxxxxxxx', //13 패딩
-  ];
-
-  if (!flash) pxGlow(ctx, grid, pal, pw, 'e', '#00ccff', pw * 5);
-  pxDraw(ctx, grid, pal, pw);
+  _drawOrkImage(ctx, _ork2Canvas, r, flash, 4.5);
 }
 
 // ============================================================
-// CARNIFEX  boss  (r ≈ 34)
-// 18칸 × 16행  pw = r * 0.18
+// DEFF DREAD  boss  (r ≈ 34)
+// 16칸 × 16행  pw = r * 0.18
 //
-// 핵심 실루엣:
-//   보라색 카라파스 돔
-//   좌우로 뻗은 거대 발톱(b)
-//   열린 턱+이빨(t)
-//   빨간 눈 글로우
-//   보스 오라 (보라 방사)
+// 오크 기계 워커 — 철판 장갑 동체, 파워 클로, 배기관
+//   행  0- 1: 배기관 (p)
+//   행  2- 6: 사각 콕핏 (조종석 그릴 g, 센서 눈 e)
+//   행  7   : 전폭 어깨 플레이트
+//   행  8-10: 파워 클로 (c) + 팔 암부 (M)
+//   행 11-13: 두꺼운 토르소 + 용접선 (w)
+//   행 14-15: 짧고 굵은 다리 + 발
 //
-// k=외곽 p=몸통(다크) c=카라파스(보라) b=뼈발톱 e=눈 t=이빨
+// k=리벳/아웃라인  m=암부 금속  M=밝은 금속
+// r=녹(러스트)  g=오크 조종석(초록)  e=센서 눈(빨강 글로우)
+// c=파워 클로(골드)  p=배기관  w=용접선
 // ============================================================
 export function drawCarnifex(ctx, r, flash) {
   dropShadow(ctx, r);
-  const pw  = Math.max(3, Math.round(r * 0.18));
+  const pw = Math.max(3, Math.round(r * 0.18));
 
   if (!flash) {
     const pulse = 0.40 + 0.20 * Math.sin(Date.now() * 0.004);
-    const g = ctx.createRadialGradient(0, 0, r * 0.2, 0, 0, r * 1.6);
-    g.addColorStop(0, `rgba(130,0,200,${pulse * 0.5})`);
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
+    const grad  = ctx.createRadialGradient(0, 0, r * 0.2, 0, 0, r * 1.6);
+    grad.addColorStop(0, `rgba(30,80,200,${pulse * 0.45})`);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.ellipse(0, 0, r * 1.6, r * 1.6, 0, 0, Math.PI * 2);
     ctx.fill();
   }
 
   const pal = flash
-    ? { k:'#ccbbdd', p:'#ddccee', c:'#eeccff', b:'#eeddaa', e:'#ffbbaa', t:'#ffeebb' }
-    : { k:'#0e0418', p:'#1e0c30', c:'#7a28b8', b:'#c8b060', e:'#ff2000', t:'#d4c060' };
+    ? { k:'#aaaacc', m:'#ccccee', M:'#ddddff', r:'#ddbbaa', g:'#aaddaa', e:'#ffaaaa', c:'#eeddaa', p:'#888888', w:'#ccccff' }
+    : { k:'#080814', m:'#181828', M:'#2a2a40', r:'#6a2800', g:'#104010', e:'#ee2000', c:'#806000', p:'#101010', w:'#38385a' };
 
-  // 모든 행 18글자 고정
+  // 모든 행 16글자 고정
   const grid = [
-    'xxxxxxkccccckxxxxx', // 0 카라파스 상단
-    'xxxxxkccccccckxxxx', // 1 카라파스
-    'xxxxkpccccccpkxxxb', // 2 머리+발톱시작
-    'xxxkppcccppkxkxbbb', // 3 머리+발톱날
-    'xxxketttttekkxkbbk', // 4 눈(e)+이빨(t)+발톱
-    'xxxkptttttttxkxkbk', // 5 아랫턱+발톱끝
-    'xxxkpppppppkxxxxxx', // 6 목/가슴
-    'xxkpppppppppkxxxxx', // 7 가슴
-    'xxkppcccccppkxxxxx', // 8 카라파스 가슴
-    'xkpcccccccccpkxxxx', // 9 카라파스 넓음
-    'kkppccccccccppkxxx', //10 최대 너비
-    'xkbbbppppppbbbkxxx', //11 앞뒷다리
-    'xxkbbkxxxxkbbkxxxx', //12 발톱
-    'xxkbbkxxxxkbbkxxxx', //13 발톱
-    'xxxxkppppkxxxxxxxx', //14 배 아래
-    'xxxxxkppkxxxxxxxxx', //15 바닥
+    'xxxxxxpxxxxpxxxx',  //  0: 배기관
+    'xxxxxxpxxxxpxxxx',  //  1: 배기관
+    'xxxxxkMMMMMMkxxx',  //  2: 헤드/콕핏 상단
+    'xxxxkMMMMMMMMkxx',  //  3: 콕핏
+    'xxxxkMeMMMMeMkxx',  //  4: 센서 눈
+    'xxxxkMggggggMkxx',  //  5: 조종석 그릴 (초록)
+    'xxxxkMmmmmmmMkxx',  //  6: 어두운 그릴 슬릿
+    'kkMMMMMMMMMMMMkk',  //  7: 어깨 플레이트 (전폭)
+    'ckkMrMMMMMMrMkkc',  //  8: 클로 마운트 + 녹
+    'cckkMMMMMMMMkkcc',  //  9: 파워 클로 상단
+    'cxkMMMMMMMMMkxcc',  // 10: 파워 클로 하단
+    'xxkMMMMMMMMMMkxx',  // 11: 토르소
+    'xxkMMwwMMwwMMkxx',  // 12: 용접 라인
+    'xxkMMMMMMMMMMkxx',  // 13: 하단 토르소
+    'xxxkMMkxxkMMkxxx',  // 14: 다리
+    'xxkMMMkxxkMMMkxx',  // 15: 발
   ];
 
-  if (!flash) pxGlow(ctx, grid, pal, pw, 'e', '#ff2000', pw * 4);
+  if (!flash) pxGlow(ctx, grid, pal, pw, 'e', '#ee2000', pw * 4);
   pxDraw(ctx, grid, pal, pw);
 }
 

@@ -153,13 +153,13 @@ export const PASSIVES_DATA = {
 export const ENEMY_DATA = {
   hormagaunt: {
     id: 'hormagaunt',
-    name: 'Hormagaunt',
+    name: 'Gretchin',         // 작고 빠른 오크 하수인
     hp: 18,
     speed: 125,
     damage: 8,
     xp: 2,
     radius: 8,
-    color: '#9B59B6',
+    color: '#4aaa22',
     scoreValue: 10,
     isBoss: false,
   },
@@ -177,25 +177,25 @@ export const ENEMY_DATA = {
   },
   warrior: {
     id: 'warrior',
-    name: 'Tyranid Warrior',
+    name: 'Nob',              // 엘리트 오크 보병
     hp: 130,
     speed: 48,
     damage: 22,
     xp: 15,
     radius: 17,
-    color: '#8E44AD',
+    color: '#1e7a30',
     scoreValue: 80,
     isBoss: false,
   },
   carnifex: {
     id: 'carnifex',
-    name: 'Carnifex',
+    name: 'Deff Dread',       // 오크 기계 워커 보스
     hp: 2200,
     speed: 34,
     damage: 42,
     xp: 200,
     radius: 34,
-    color: '#6C3483',
+    color: '#2a3a8a',
     scoreValue: 500,
     isBoss: true,
   },
