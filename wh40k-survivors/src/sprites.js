@@ -140,18 +140,35 @@ export function drawSpaceMarine(ctx, r, flash) {
   ctx.filter = 'none';
 }
 
-// ── 오크 이미지 로더 ─────────────────────────────────────────
-// assets/ork1.png, ork2.png 는 오프라인 BFS 배경 제거로 이미 투명 채널 포함.
-// 런타임 배경 제거 불필요 — 그냥 로드해서 drawImage 에 사용.
-function _loadOrkImage(src) {
+// ── 이미지 로더 ───────────────────────────────────────────────
+// bgRemove=false : 이미 투명 채널 포함 (ork1, ork2)
+// bgRemove=true  : 좌상단 픽셀 기준 배경색 자동 제거 (grechin, gunt)
+function _loadOrkImage(src, bgRemove = false) {
   const cv = document.createElement('canvas');
   cv._ready = false;
   const img = new Image();
   img.onload = () => {
-    cv.width  = img.naturalWidth;
-    cv.height = img.naturalHeight;
+    const W = img.naturalWidth, H = img.naturalHeight;
+    cv.width  = W;
+    cv.height = H;
     const c = cv.getContext('2d');
     c.drawImage(img, 0, 0);
+    if (bgRemove) {
+      try {
+        const id   = c.getImageData(0, 0, W, H);
+        const data = id.data;
+        const bgR  = data[0], bgG = data[1], bgB = data[2];
+        for (let i = 0; i < data.length; i += 4) {
+          const dr = Math.abs(data[i]   - bgR);
+          const dg = Math.abs(data[i+1] - bgG);
+          const db = Math.abs(data[i+2] - bgB);
+          if (dr + dg + db < 80) data[i+3] = 0;
+        }
+        c.putImageData(id, 0, 0);
+      } catch(e) {
+        console.warn('[sprites] 배경 제거 실패:', e.message);
+      }
+    }
     cv._ready = true;
   };
   img.onerror = () => console.warn('[sprites] 이미지 로드 실패:', src);
@@ -159,14 +176,12 @@ function _loadOrkImage(src) {
   return cv;
 }
 
-// ork1.png    → Ork Boy  (r≈13)
-// ork2.png    → Nob      (r≈17)
-// grechin.png → Gretchin (r≈8)
-// gunt.png    → Gunt     (r≈15)
+// ork1.png, ork2.png : 이미 투명 배경
+// grechin.png, gunt.png : 런타임 배경 제거 필요
 const _ork1Canvas    = _loadOrkImage('./assets/ork1.png');
 const _ork2Canvas    = _loadOrkImage('./assets/ork2.png');
-const _grechinCanvas = _loadOrkImage('./assets/grechin.png');
-const _guntCanvas    = _loadOrkImage('./assets/gunt.png');
+const _grechinCanvas = _loadOrkImage('./assets/grechin.png', true);
+const _guntCanvas    = _loadOrkImage('./assets/gunt.png',    true);
 
 /**
  * 오크 이미지 공통 렌더
