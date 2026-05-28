@@ -94,8 +94,8 @@ export class Player {
 
     ctx.save();
     ctx.translate(x, y);
-    // Side-view: flip horizontally when facing left
-    if (this.facingLeft) ctx.scale(-1, 1);
+    // marine.png 기본 방향이 왼쪽 → 오른쪽 이동 시에만 flip
+    if (!this.facingLeft) ctx.scale(-1, 1);
     drawSpaceMarine(ctx, r, flash);
     ctx.restore();
   }
