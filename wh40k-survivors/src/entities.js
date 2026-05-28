@@ -6,7 +6,7 @@ import { PLAYER_DATA, ENEMY_DATA, xpForLevel } from './data.js';
 import { dist, distSq, normalize, lerp, clamp, randRange } from './engine.js';
 import {
   drawSpaceMarine, drawHormagaunt, drawOrkBoy,
-  drawTyranidWarrior, drawCarnifex, drawWarboss,
+  drawTyranidWarrior, drawCarnifex, drawWarboss, drawGunt,
 } from './sprites.js';
 
 // ============================================================
@@ -170,6 +170,7 @@ export class Enemy {
       case 'warrior':    drawTyranidWarrior(ctx, r, flash); break;
       case 'carnifex':   drawCarnifex(ctx, r, flash, this.hp, this.maxHp); break;
       case 'warboss':    drawWarboss(ctx, r, flash);       break;
+      case 'gunt':       drawGunt(ctx, r, flash);         break;
       default:           // fallback diamond
         ctx.rotate(Math.PI / 4);
         ctx.fillStyle = flash ? '#fff' : this.color;

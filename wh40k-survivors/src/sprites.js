@@ -159,10 +159,14 @@ function _loadOrkImage(src) {
   return cv;
 }
 
-// ork1.png (210×158) → Ork Boy (r≈13)
-// ork2.png (232×227) → Nob     (r≈17)
-const _ork1Canvas = _loadOrkImage('./assets/ork1.png');
-const _ork2Canvas = _loadOrkImage('./assets/ork2.png');
+// ork1.png    → Ork Boy  (r≈13)
+// ork2.png    → Nob      (r≈17)
+// grechin.png → Gretchin (r≈8)
+// gunt.png    → Gunt     (r≈15)
+const _ork1Canvas    = _loadOrkImage('./assets/ork1.png');
+const _ork2Canvas    = _loadOrkImage('./assets/ork2.png');
+const _grechinCanvas = _loadOrkImage('./assets/grechin.png');
+const _guntCanvas    = _loadOrkImage('./assets/gunt.png');
 
 /**
  * 오크 이미지 공통 렌더
@@ -184,41 +188,17 @@ function _drawOrkImage(ctx, orkCv, r, flash, M) {
 }
 
 // ============================================================
-// GRETCHIN  (r ≈ 8)
-// 11칸 × 12행  pw = r * 0.36
-//
-// 오크 하수인 — 작고 빠른 잡졸
-//   크고 뾰족한 귀, 노란 눈(글로우), 꼽추 자세
-//   오른손에 조잡한 스텁건(n=건메탈)
-//
-// k=아웃라인  g=초록 피부  e=눈(노란 글로우)
-// b=갈색 누더기  n=건메탈  t=이빨
+// GRETCHIN  (r ≈ 8)  — grechin.png 직접 렌더링
 // ============================================================
 export function drawHormagaunt(ctx, r, flash) {
-  dropShadow(ctx, r);
-  const pw  = Math.max(2, Math.round(r * 0.36));
-  const pal = flash
-    ? { k:'#88bb88', g:'#aaddaa', e:'#eeffaa', b:'#ccaa88', n:'#aaaacc', t:'#eeeebb' }
-    : { k:'#0a0a08', g:'#3a8022', e:'#c8e000', b:'#5a3010', n:'#1a1a22', t:'#c0c0a0' };
+  _drawOrkImage(ctx, _grechinCanvas, r, flash, 5.0);
+}
 
-  // 모든 행 11글자 고정
-  const grid = [
-    'kgkxxxxxkgk',  //  0: 뾰족한 귀 끝
-    'kggkxxxkggk',  //  1: 귀
-    'xkgggggggkx',  //  2: 두상 상단
-    'xkggeegggkx',  //  3: 눈 (e=노란 글로우)
-    'xkgggggggkx',  //  4: 뺨
-    'xkgktttkgkx',  //  5: 이빨
-    'xxkbbbbbkxx',  //  6: 토르소 (누더기)
-    'xkgbbbbgnkx',  //  7: 팔 + 무기(n)
-    'xxkgbbgnnnx',  //  8: 손 + 무기 손잡이
-    'xxxkgkgnnnx',  //  9: 다리 + 무기 날
-    'xxxkbkbkxxx',  // 10: 발
-    'xxxxxxxxxxx',  // 11: 패딩
-  ];
-
-  if (!flash) pxGlow(ctx, grid, pal, pw, 'e', '#c8e000', pw * 5);
-  pxDraw(ctx, grid, pal, pw);
+// ============================================================
+// GUNT  (r ≈ 15)  — gunt.png 직접 렌더링
+// ============================================================
+export function drawGunt(ctx, r, flash) {
+  _drawOrkImage(ctx, _guntCanvas, r, flash, 5.5);
 }
 
 // ============================================================

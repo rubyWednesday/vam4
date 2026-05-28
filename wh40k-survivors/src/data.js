@@ -223,6 +223,18 @@ export const ENEMY_DATA = {
     scoreValue: 80,
     isBoss: false,
   },
+  gunt: {
+    id: 'gunt',
+    name: 'Gunt',
+    hp: 90,
+    speed: 88,
+    damage: 18,
+    xp: 8,
+    radius: 15,
+    color: '#4a2060',
+    scoreValue: 50,
+    isBoss: false,
+  },
   carnifex: {
     id: 'carnifex',
     name: 'Deff Dread',       // 오크 기계 워커 보스
@@ -254,13 +266,13 @@ export const ENEMY_DATA = {
 export const WAVES = [
   { time:   0, rate: 1.60, max:  30, types: ['hormagaunt'] },
   { time:  30, rate: 1.30, max:  50, types: ['hormagaunt','hormagaunt','boyz'] },
-  { time:  60, rate: 1.10, max:  70, types: ['hormagaunt','boyz'] },
-  { time:  90, rate: 0.90, max:  90, types: ['hormagaunt','boyz','warrior'] },
-  { time: 120, rate: 0.75, max: 120, types: ['hormagaunt','boyz','warrior'] },
-  { time: 180, rate: 0.60, max: 160, types: ['boyz','warrior'] },
-  { time: 240, rate: 0.45, max: 220, types: ['boyz','warrior'] },
-  { time: 300, rate: 0.30, max: 300, types: ['hormagaunt','warrior'] },
-  { time: 400, rate: 0.22, max: 400, types: ['warrior','boyz'] },
+  { time:  60, rate: 1.10, max:  70, types: ['hormagaunt','boyz','gunt'] },
+  { time:  90, rate: 0.90, max:  90, types: ['hormagaunt','boyz','gunt','warrior'] },
+  { time: 120, rate: 0.75, max: 120, types: ['hormagaunt','gunt','warrior'] },
+  { time: 180, rate: 0.60, max: 160, types: ['boyz','gunt','warrior'] },
+  { time: 240, rate: 0.45, max: 220, types: ['gunt','warrior'] },
+  { time: 300, rate: 0.30, max: 300, types: ['hormagaunt','gunt','warrior'] },
+  { time: 400, rate: 0.22, max: 400, types: ['gunt','warrior','boyz'] },
 ];
 
 // Boss spawn times (seconds)
