@@ -352,6 +352,116 @@ export class OrbitalStrike extends BaseWeapon {
   }
 }
 
+// ============================================================
+// Thunder Hammer — front-arc heavy melee with massive knockback
+// ============================================================
+export class ThunderHammer extends BaseWeapon {
+  constructor(game) { super('thunderHammer', game); }
+
+  fire(player, enemies) {
+    const { dmg, range, arc, kb } = this.stats;
+    const baseDmg = dmg * player.damageMult;
+    const halfRad = (arc * Math.PI / 180) / 2;
+    const fx = player.facing.x, fy = player.facing.y;
+
+    // Impact shockwave visual at slam center
+    this.game.pools.explosions.acquire(
+      player.x + fx * range * 0.55,
+      player.y + fy * range * 0.55,
+      range * 0.9, '#FFA500'
+    );
+
+    for (const e of [...enemies]) {
+      if (!e.active) continue;
+      const ex = e.x - player.x, ey = e.y - player.y;
+      const d = Math.sqrt(ex*ex + ey*ey) || 1;
+      if (d > range + e.radius) continue;
+      if ((ex/d)*fx + (ey/d)*fy < Math.cos(halfRad)) continue;
+      const died = e.takeDamage(baseDmg, (ex/d)*kb, (ey/d)*kb);
+      this.game.pools.floatText.acquire(e.x, e.y - e.radius, Math.floor(baseDmg).toString(), this.data.color, 14);
+      if (died) this.game.onEnemyDeath(e);
+    }
+
+    this.game.world.checkDestructiblesInRadius(player.x, player.y, range, this.game);
+  }
+}
+
+// ============================================================
+// Whirlwind — homing salvo targeting multiple different enemies
+// ============================================================
+export class Whirlwind extends BaseWeapon {
+  constructor(game) { super('whirlwind', game); }
+
+  fire(player, enemies) {
+    if (!enemies.length) return;
+    const { dmg, count, spd, homing, radius } = this.stats;
+    const baseDmg = dmg * player.damageMult;
+
+    // Pick up to `count` nearest enemies (snapshot sort, no mutation)
+    const targets = [...enemies]
+      .map(e => ({ e, d: distSq(player.x, player.y, e.x, e.y) }))
+      .sort((a, b) => a.d - b.d)
+      .slice(0, count);
+
+    for (const { e } of targets) {
+      const { dx, dy } = normalize(e.x - player.x, e.y - player.y);
+      const spread = (Math.random() - 0.5) * 0.25;
+      const ang = Math.atan2(dy, dx) + spread;
+      this.game.pools.projectiles.acquire(
+        player.x, player.y,
+        Math.cos(ang) * spd, Math.sin(ang) * spd,
+        baseDmg, 1, radius, this.data.color, homing
+      );
+    }
+  }
+}
+
+// ============================================================
+// Chain Lightning — arcs between nearest enemies in sequence
+// ============================================================
+export class ChainLightning extends BaseWeapon {
+  constructor(game) { super('chainLightning', game); }
+
+  fire(player, enemies) {
+    if (!enemies.length) return;
+    const { dmg, chains, chainRange, decay } = this.stats;
+
+    const hit = new Set();
+    let current = this._nearest(player.x, player.y, enemies);
+    if (!current) return;
+
+    let prevX = player.x, prevY = player.y;
+    let currentDmg = dmg * player.damageMult;
+
+    for (let c = 0; c <= chains; c++) {
+      if (!current || hit.has(current) || !current.active) break;
+      hit.add(current);
+
+      // Arc visual from previous node to current
+      this.game.pools.laserBeams.acquire(prevX, prevY, current.x, current.y, 4, 0);
+
+      // Save position before potential release
+      const nx = current.x, ny = current.y;
+      const { dx, dy } = normalize(current.x - prevX, current.y - prevY);
+      const died = current.takeDamage(currentDmg, dx * 200, dy * 200);
+      this.game.pools.floatText.acquire(nx, ny - current.radius, Math.floor(currentDmg).toString(), this.data.color, 12);
+      if (died) this.game.onEnemyDeath(current);
+
+      prevX = nx; prevY = ny;
+      currentDmg *= decay;
+
+      // Find nearest unchained enemy within chainRange of last hit position
+      let nextBest = null, nextBestD = Infinity;
+      for (const e of [...enemies]) {
+        if (hit.has(e) || !e.active) continue;
+        const d = distSq(nx, ny, e.x, e.y);
+        if (d < chainRange * chainRange && d < nextBestD) { nextBestD = d; nextBest = e; }
+      }
+      current = nextBest;
+    }
+  }
+}
+
 function _distToSeg(px, py, ax, ay, bx, by) {
   const dx = bx-ax, dy = by-ay;
   const lenSq = dx*dx + dy*dy;
@@ -371,9 +481,12 @@ export function createWeapon(id, game) {
     case 'fragGrenades':  return new FragGrenades(game);
     case 'heavyFlamer':   return new HeavyFlamer(game);
     case 'lascannon':     return new Lascannon(game);
-    case 'stormBolter':   return new StormBolter(game);
-    case 'meltaGun':      return new MeltaGun(game);
-    case 'orbitalStrike': return new OrbitalStrike(game);
+    case 'stormBolter':    return new StormBolter(game);
+    case 'meltaGun':       return new MeltaGun(game);
+    case 'orbitalStrike':  return new OrbitalStrike(game);
+    case 'thunderHammer':  return new ThunderHammer(game);
+    case 'whirlwind':      return new Whirlwind(game);
+    case 'chainLightning': return new ChainLightning(game);
     default: throw new Error(`Unknown weapon: ${id}`);
   }
 }
