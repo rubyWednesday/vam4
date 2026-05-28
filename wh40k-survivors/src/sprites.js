@@ -54,37 +54,51 @@ function dropShadow(ctx, r) {
 
 // ============================================================
 // SPACE MARINE  (r ≈ 14)
-// 14칸 × 12행  pw = r * 0.27
+// 16칸 × 20행  pw = r * 0.22  — 레퍼런스(Warhammer Survivors) 스타일
 //
-// 핵심 실루엣:
-//   행0-2: 헬멧 (5칸 넓이)
-//   행3-4: 파우달론 — 14칸 전폭!! (헬멧의 약 3배)
-//   행5-7: 가슴/건
-//   행8-10: 다리/부츠
+// 시점: 3/4 탑다운 (살짝 위에서 내려다봄)
+//   → 헬멧·파우달론 윗면이 B(밝은 블루)로 하이라이트
+//   → 볼터가 몸통의 40% 높이로 크고 두드러짐
+//   → 파우달론이 화면 전폭을 차지해 땅딸막한 실루엣
 //
-// k=외곽(#050e20) b=울트라블루 v=바이저초록(글로우) d=다크턱 c=골드 n=건
+// 팔레트:
+//   k = 아웃라인   #050e20
+//   b = 울트라마린 블루  #0b31ad
+//   B = 탑면 하이라이트  #2855d4  (위서 빛 받는 윗면)
+//   v = 바이저 렌즈 초록 (글로우)
+//   g = 페이스 그릴 (어두운 슬릿)
+//   c = 골드 (아퀼라 + 챕터마크)
+//   n = 볼터 건메탈
 // ============================================================
 export function drawSpaceMarine(ctx, r, flash) {
   dropShadow(ctx, r);
-  const pw  = Math.max(2, Math.round(r * 0.27));
+  const pw  = Math.max(2, Math.round(r * 0.22));
   const pal = flash
-    ? { k:'#8899cc', b:'#aabbff', v:'#aaffcc', d:'#7788bb', c:'#ffee88', n:'#888888' }
-    : { k:'#050e20', b:'#0b31ad', v:'#00ff88', d:'#04163d', c:'#c9a227', n:'#181818' };
+    ? { k:'#7788bb', b:'#aabbff', B:'#ccdeff', v:'#ccffee', g:'#556699', c:'#ffee88', n:'#888888' }
+    : { k:'#050e20', b:'#0b31ad', B:'#2855d4', v:'#00ff88', g:'#030a18', c:'#c9a227', n:'#1a1a1a' };
 
-  // 모든 행 14글자 고정
+  // 모든 행 16글자 고정
   const grid = [
-    'xxxxkbbbkxxxxx', // 0 헬멧
-    'xxxxkbbbkxxxxx', // 1 헬멧
-    'xxxxkvvvkxxxxx', // 2 GREEN VISOR ← 글로우
-    'xxxxkdddkxxxxx', // 3 다크 턱
-    'kkkkbbbbbbkkkk', // 4 파우달론 (14칸 전부!)
-    'kbbbbbbbbbbbbk', // 5 파우달론 최대폭
-    'xkbbbbbbbbknnx', // 6 가슴 + 건
-    'xkbbcbbbbknnxx', // 7 아퀼라 + 건
-    'xxkbbbbbbkxxxx', // 8 허리
-    'xxxkbxbkxxxxxx', // 9 다리
-    'xxxkbxbkxxxxxx', //10 다리
-    'xxxknxnkxxxxxx', //11 부츠
+    'xxxxxkBBBBkxxxxx',  //  0  헬멧 크라운 (B = 위에서 빛 닿는 윗면)
+    'xxxxkBBBBBBkxxxx',  //  1  헬멧 돔 상면 — 3/4뷰 하이라이트
+    'xxxxkvvbbvvkxxxx',  //  2  눈 렌즈 ×2 (v = 초록 글로우)
+    'xxxxkbbbbbbkxxxx',  //  3  노즈가드
+    'xxxxkggggggkxxxx',  //  4  페이스 그릴 (어두운 슬릿)
+    'xxxxkggggggkxxxx',  //  5  하단 그릴
+    'xxxxxkbbbbkxxxxx',  //  6  턱 피스
+    'xxkBBBBBBBBBBkxx',  //  7  고르겟 + 파우달론 상면 하이라이트
+    'kkBBBBBBBBBBBBkk',  //  8  파우달론 전폭 — 위에서 본 윗면
+    'kbbbbcbbbbbbbbbk',  //  9  파우달론 하단 + 챕터마크 (c = 골드)
+    'kbbbbbbbbbbbbbbk',  // 10  파우달론 / 상단 흉부 연결
+    'xkbbcbbbcbbknnxx',  // 11  흉부 아퀼라 날개 (c) + 볼터 시작
+    'xkbbbbcbbbbknnxx',  // 12  흉부 아퀼라 본체 + 볼터
+    'xkbbbbbbbbbknnxx',  // 13  하단 흉부 + 볼터 배럴
+    'xxkbbbbbbbbknnxx',  // 14  복부 + 볼터 (계속)
+    'xxxkbbbbbbbkxxxx',  // 15  허리 (볼터 끝)
+    'xxxxkbbbbbkxxxxx',  // 16  코드 플레이트
+    'xxxkbbbxxbbbkxxx',  // 17  상단 다리 (두 다리 분리)
+    'xxxkbbbxxbbbkxxx',  // 18  그리브
+    'xxkbbbbxxbbbbkxx',  // 19  부츠 (다리보다 넓음)
   ];
 
   if (!flash) pxGlow(ctx, grid, pal, pw, 'v', '#00ff88', pw * 4);
