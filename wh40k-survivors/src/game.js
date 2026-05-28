@@ -339,7 +339,7 @@ export class Game {
       // Tick every 0.1s
       if (field.tickTimer >= 0.1) {
         field.tickTimer = 0;
-        for (const e of activeEnemies) {
+        for (const e of [...activeEnemies]) {
           if (!e.active) continue;
           if (dist(field.x, field.y, e.x, e.y) < field.radius + e.radius) {
             const dmg = field.dps * 0.1;
@@ -357,7 +357,7 @@ export class Game {
       if (landed) {
         const d = g.data;
         // Explosion damage to enemies in radius
-        for (const e of activeEnemies) {
+        for (const e of [...activeEnemies]) {
           if (!e.active) continue;
           if (dist(g.tx, g.ty, e.x, e.y) < d.radius + e.radius) {
             const died = e.takeDamage(d.dmg);

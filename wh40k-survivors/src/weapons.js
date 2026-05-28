@@ -191,7 +191,7 @@ export class HeavyFlamer extends BaseWeapon {
     const dd  = Math.sqrt(ddx*ddx + ddy*ddy) || 1;
     const fx  = ddx/dd, fy = ddy/dd;
 
-    for (const e of enemies) {
+    for (const e of [...enemies]) {
       if (!e.active) continue;
       const ex = e.x - player.x, ey = e.y - player.y;
       const d  = Math.sqrt(ex*ex + ey*ey) || 1;
@@ -230,7 +230,7 @@ export class Lascannon extends BaseWeapon {
     const ex  = player.x + fx * range;
     const ey  = player.y + fy * range;
 
-    for (const e of enemies) {
+    for (const e of [...enemies]) {
       if (!e.active) continue;
       if (_distToSeg(e.x, e.y, player.x, player.y, ex, ey) < width + e.radius) {
         const died = e.takeDamage(baseDmg, fx*280, fy*280);
