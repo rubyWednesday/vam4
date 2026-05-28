@@ -26,11 +26,14 @@ let   _marineReady  = false;
     const bgR = data[0], bgG = data[1], bgB = data[2];
 
     for (let i = 0; i < data.length; i += 4) {
-      const dr = Math.abs(data[i]   - bgR);
-      const dg = Math.abs(data[i+1] - bgG);
-      const db = Math.abs(data[i+2] - bgB);
+      const r = data[i], g = data[i+1], b = data[i+2];
+      const dr = Math.abs(r - bgR);
+      const dg = Math.abs(g - bgG);
+      const db = Math.abs(b - bgB);
       // 배경색에 가까운 픽셀 투명 처리 (허용 오차 90)
-      if (dr + dg + db < 90) data[i + 3] = 0;
+      if (dr + dg + db < 90) { data[i + 3] = 0; continue; }
+      // 빨강/주황 폭발 파티클 제거 (R 채널이 지배적이고 밝은 경우)
+      if (r > 160 && r - g > 80 && r - b > 80) data[i + 3] = 0;
     }
     c.putImageData(id, 0, 0);
     _marineReady = true;
@@ -101,8 +104,8 @@ export function drawSpaceMarine(ctx, r, flash) {
     return;
   }
 
-  // 캐릭터 높이를 r * 2.8 에 맞춰 스케일
-  const scale = (r * 2.8) / _marineCanvas.height;
+  // 캐릭터 높이를 r * 3.64 에 맞춰 스케일 (기존 대비 30% 확대)
+  const scale = (r * 3.64) / _marineCanvas.height;
   const dw = _marineCanvas.width  * scale;
   const dh = _marineCanvas.height * scale;
 
