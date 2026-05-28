@@ -246,6 +246,112 @@ export class Lascannon extends BaseWeapon {
   }
 }
 
+// ============================================================
+// Storm Bolter — 360° omnidirectional spray, no target needed
+// ============================================================
+export class StormBolter extends BaseWeapon {
+  constructor(game) { super('stormBolter', game); this._phase = 0; }
+
+  fire(player, enemies) {
+    const { dmg, spd, count, bulletRadius } = this.stats;
+    const baseDmg = dmg * player.damageMult;
+    // Rotate pattern each fire for full 360° coverage over time
+    this._phase += Math.PI / count;
+    for (let i = 0; i < count; i++) {
+      const ang = this._phase + (i / count) * Math.PI * 2;
+      this.game.pools.projectiles.acquire(
+        player.x, player.y,
+        Math.cos(ang) * spd, Math.sin(ang) * spd,
+        baseDmg, 1, bulletRadius, this.data.color, false
+      );
+    }
+  }
+}
+
+// ============================================================
+// Melta Gun — short-range nuke; holds fire until enemy is close
+// ============================================================
+export class MeltaGun extends BaseWeapon {
+  constructor(game) { super('meltaGun', game); }
+
+  // Override: hold timer at threshold when no enemy is in range
+  update(dt, player, enemies) {
+    this.timer += dt;
+    if (this.timer >= this.stats.cd) {
+      if (this._tryFire(player, enemies)) this.timer = 0;
+      else this.timer = this.stats.cd; // stay hot, retry next frame
+    }
+  }
+
+  _tryFire(player, enemies) {
+    if (!enemies.length) return false;
+    const target = this._nearest(player.x, player.y, enemies);
+    if (!target) return false;
+
+    const { dmg, range, fieldDur, fieldDps } = this.stats;
+    if (distSq(player.x, player.y, target.x, target.y) > (range + target.radius) ** 2) return false;
+
+    const baseDmg = dmg * player.damageMult;
+    let textCount = 0;
+    for (const e of [...enemies]) {
+      if (!e.active) continue;
+      if (distSq(player.x, player.y, e.x, e.y) > (range + e.radius) ** 2) continue;
+      const { dx, dy } = normalize(e.x - player.x, e.y - player.y);
+      const died = e.takeDamage(baseDmg, dx * 350, dy * 350);
+      if (textCount < 6) {
+        this.game.pools.floatText.acquire(e.x, e.y - e.radius, Math.floor(baseDmg).toString(), this.data.color, 14);
+        textCount++;
+      }
+      if (died) this.game.onEnemyDeath(e);
+    }
+    this.game.pools.explosions.acquire(player.x, player.y, range, '#FF6633');
+    this.game.pools.damageFields.acquire(player.x, player.y, range * 0.7, fieldDps * player.damageMult, fieldDur);
+    return true;
+  }
+
+  fire() {} // not used (update overridden)
+}
+
+// ============================================================
+// Orbital Strike — finds densest cluster, calls in bombardment
+// ============================================================
+export class OrbitalStrike extends BaseWeapon {
+  constructor(game) { super('orbitalStrike', game); }
+
+  fire(player, enemies) {
+    if (!enemies.length) return;
+    const { dmg, radius, fieldDur, fieldDps } = this.stats;
+
+    // Find enemy with most neighbours within radius (O(n²), fires every 6-10s)
+    let bestCenter = enemies[0], bestCount = 0;
+    for (const e of enemies) {
+      let n = 0;
+      for (const other of enemies) {
+        if (distSq(e.x, e.y, other.x, other.y) < radius * radius) n++;
+      }
+      if (n > bestCount) { bestCount = n; bestCenter = e; }
+    }
+
+    const tx = bestCenter.x, ty = bestCenter.y;
+    const baseDmg = dmg * player.damageMult;
+    let textCount = 0;
+    for (const e of [...enemies]) {
+      if (!e.active) continue;
+      if (distSq(tx, ty, e.x, e.y) > (radius + e.radius) ** 2) continue;
+      const { dx, dy } = normalize(e.x - tx, e.y - ty);
+      const died = e.takeDamage(baseDmg, dx * 400, dy * 400);
+      if (textCount < 8) {
+        this.game.pools.floatText.acquire(e.x, e.y - e.radius, Math.floor(baseDmg).toString(), this.data.color, 13);
+        textCount++;
+      }
+      if (died) this.game.onEnemyDeath(e);
+    }
+    this.game.pools.explosions.acquire(tx, ty, radius, '#9B59B6');
+    this.game.pools.damageFields.acquire(tx, ty, radius * 0.55, fieldDps * player.damageMult, fieldDur);
+    this.game.pools.floatText.acquire(tx, ty - radius - 16, 'ORBITAL!', '#9B59B6', 18);
+  }
+}
+
 function _distToSeg(px, py, ax, ay, bx, by) {
   const dx = bx-ax, dy = by-ay;
   const lenSq = dx*dx + dy*dy;
@@ -259,12 +365,15 @@ function _distToSeg(px, py, ax, ay, bx, by) {
 // ============================================================
 export function createWeapon(id, game) {
   switch (id) {
-    case 'bolter':       return new Bolter(game);
-    case 'powerSword':   return new PowerSword(game);
-    case 'plasmaGun':    return new PlasmaGun(game);
-    case 'fragGrenades': return new FragGrenades(game);
-    case 'heavyFlamer':  return new HeavyFlamer(game);
-    case 'lascannon':    return new Lascannon(game);
+    case 'bolter':        return new Bolter(game);
+    case 'powerSword':    return new PowerSword(game);
+    case 'plasmaGun':     return new PlasmaGun(game);
+    case 'fragGrenades':  return new FragGrenades(game);
+    case 'heavyFlamer':   return new HeavyFlamer(game);
+    case 'lascannon':     return new Lascannon(game);
+    case 'stormBolter':   return new StormBolter(game);
+    case 'meltaGun':      return new MeltaGun(game);
+    case 'orbitalStrike': return new OrbitalStrike(game);
     default: throw new Error(`Unknown weapon: ${id}`);
   }
 }
