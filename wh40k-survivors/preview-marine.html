@@ -70,7 +70,7 @@ function renderOnCanvas(marineCanvas, r, flash, label) {
   ctx.save();
   ctx.translate(SIZE/2, SIZE/2);
 
-  const scale = (r * 3.64) / marineCanvas.height;
+  const scale = (r * 5.0) / marineCanvas.height;
   const dw = marineCanvas.width  * scale;
   const dh = marineCanvas.height * scale;
 
@@ -102,7 +102,7 @@ function renderFlipped(marineCanvas, r, label) {
   ctx.translate(SIZE/2, SIZE/2);
   ctx.scale(-1, 1);   // ← 왼쪽 이동 시 flip
 
-  const scale = (r * 3.64) / marineCanvas.height;
+  const scale = (r * 5.0) / marineCanvas.height;
   const dw = marineCanvas.width  * scale;
   const dh = marineCanvas.height * scale;
   ctx.drawImage(marineCanvas, -dw/2, -dh/2, dw, dh);
@@ -133,11 +133,11 @@ img.onload = () => {
     document.getElementById('tolVal').textContent = tol;
     document.getElementById('previews').innerHTML = '';
     const mc = buildMarineCanvas(img, tol);
-    renderOnCanvas(mc,  14, false, 'r=14 (게임 실제)');
-    renderOnCanvas(mc,  20, false, 'r=20 (확대)');
-    renderOnCanvas(mc,  28, false, 'r=28 (더 크게)');
-    renderFlipped (mc,  20,        'r=20 ← 왼쪽 이동');
-    renderOnCanvas(mc,  20, true,  'r=20 히트 플래시');
+    renderOnCanvas(mc,  14, false, 'r=14 플레이어 (70px)');
+    renderOnCanvas(mc,  20, false, 'r=20 (100px)');
+    renderOnCanvas(mc,  28, false, 'r=28 (140px)');
+    renderFlipped (mc,  14,        'r=14 ← 왼쪽 이동');
+    renderOnCanvas(mc,  14, true,  'r=14 히트 플래시');
   }
 
   document.getElementById('tol').addEventListener('input', () => {

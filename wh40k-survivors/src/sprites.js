@@ -19,23 +19,29 @@ let   _marineReady  = false;
     const c  = _marineCanvas.getContext('2d');
     c.drawImage(img, 0, 0);
 
-    const id   = c.getImageData(0, 0, W, H);
-    const data = id.data;
+    try {
+      const id   = c.getImageData(0, 0, W, H);
+      const data = id.data;
 
-    // 좌상단 픽셀 = 배경색 기준
-    const bgR = data[0], bgG = data[1], bgB = data[2];
+      // 좌상단 픽셀 = 배경색 기준
+      const bgR = data[0], bgG = data[1], bgB = data[2];
 
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i], g = data[i+1], b = data[i+2];
-      const dr = Math.abs(r - bgR);
-      const dg = Math.abs(g - bgG);
-      const db = Math.abs(b - bgB);
-      // 배경색에 가까운 픽셀 투명 처리 (허용 오차 90)
-      if (dr + dg + db < 90) { data[i + 3] = 0; continue; }
-      // 빨강/주황 폭발 파티클 제거 (R 채널이 지배적이고 밝은 경우)
-      if (r > 160 && r - g > 80 && r - b > 80) data[i + 3] = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i+1], b = data[i+2];
+        const dr = Math.abs(r - bgR);
+        const dg = Math.abs(g - bgG);
+        const db = Math.abs(b - bgB);
+        // 배경색에 가까운 픽셀 투명 처리 (허용 오차 90)
+        if (dr + dg + db < 90) { data[i + 3] = 0; continue; }
+        // 빨강/주황 폭발 파티클 제거 (R 채널이 지배적이고 밝은 경우)
+        if (r > 160 && r - g > 80 && r - b > 80) data[i + 3] = 0;
+      }
+      c.putImageData(id, 0, 0);
+    } catch (e) {
+      // CORS 제한(file:// 프로토콜 등)으로 getImageData 실패 시
+      // 배경 제거 없이 원본 이미지 그대로 사용
+      console.warn('[sprites] 배경 제거 실패, 원본 이미지 사용:', e.message);
     }
-    c.putImageData(id, 0, 0);
     _marineReady = true;
   };
   img.onerror = () => console.warn('[sprites] marine.png 로드 실패');
@@ -104,8 +110,9 @@ export function drawSpaceMarine(ctx, r, flash) {
     return;
   }
 
-  // 캐릭터 높이를 r * 3.64 에 맞춰 스케일 (기존 대비 30% 확대)
-  const scale = (r * 3.64) / _marineCanvas.height;
+  // 캐릭터 높이를 r * 5.0 에 맞춰 스케일
+  // → r=14 기준 70px: 오크보이(52px), 타이라니드 워리어(56px)보다 명확히 큼
+  const scale = (r * 5.0) / _marineCanvas.height;
   const dw = _marineCanvas.width  * scale;
   const dh = _marineCanvas.height * scale;
 
