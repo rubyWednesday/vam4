@@ -157,12 +157,45 @@ function _loadOrkImage(src, bgRemove = false) {
       try {
         const id   = c.getImageData(0, 0, W, H);
         const data = id.data;
+        const TOLE = 100;
+        // 좌상단 픽셀 = 배경 기준색
         const bgR  = data[0], bgG = data[1], bgB = data[2];
-        for (let i = 0; i < data.length; i += 4) {
-          const dr = Math.abs(data[i]   - bgR);
-          const dg = Math.abs(data[i+1] - bgG);
-          const db = Math.abs(data[i+2] - bgB);
-          if (dr + dg + db < 80) data[i+3] = 0;
+
+        // 모든 가장자리 픽셀 중 배경색과 비슷한 것을 시드로 flood fill
+        // → 캐릭터 발밑처럼 코너에서 막힌 배경도 제거
+        const visited = new Uint8Array(W * H);
+        const queue   = [];
+
+        function seed(x, y) {
+          const idx = y * W + x;
+          if (visited[idx]) return;
+          const bi = idx * 4;
+          const dr = Math.abs(data[bi]   - bgR);
+          const dg = Math.abs(data[bi+1] - bgG);
+          const db = Math.abs(data[bi+2] - bgB);
+          if (dr + dg + db >= TOLE) return;
+          visited[idx] = 1;
+          queue.push(idx);
+        }
+
+        for (let x = 0; x < W; x++) { seed(x, 0); seed(x, H-1); }
+        for (let y = 0; y < H; y++) { seed(0, y); seed(W-1, y); }
+
+        while (queue.length) {
+          const idx = queue.pop();
+          const bi  = idx * 4;
+          if (data[bi+3] === 0) continue;
+          const dr = Math.abs(data[bi]   - bgR);
+          const dg = Math.abs(data[bi+1] - bgG);
+          const db = Math.abs(data[bi+2] - bgB);
+          if (dr + dg + db >= TOLE) continue;
+          data[bi+3] = 0;
+          const x = idx % W, y = (idx / W) | 0;
+          for (const [nx, ny] of [[x+1,y],[x-1,y],[x,y+1],[x,y-1]]) {
+            if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+            const ni = ny * W + nx;
+            if (!visited[ni]) { visited[ni] = 1; queue.push(ni); }
+          }
         }
         c.putImageData(id, 0, 0);
       } catch(e) {
@@ -176,12 +209,11 @@ function _loadOrkImage(src, bgRemove = false) {
   return cv;
 }
 
-// ork1.png, ork2.png : 이미 투명 배경
-// grechin.png, gunt.png : 런타임 배경 제거 필요
+// 모든 이미지 투명 배경 사전 처리 완료
 const _ork1Canvas    = _loadOrkImage('./assets/ork1.png');
 const _ork2Canvas    = _loadOrkImage('./assets/ork2.png');
-const _grechinCanvas = _loadOrkImage('./assets/grechin.png', true);
-const _guntCanvas    = _loadOrkImage('./assets/gunt.png',    true);
+const _grechinCanvas = _loadOrkImage('./assets/grechin.png');
+const _guntCanvas    = _loadOrkImage('./assets/gunt.png');
 
 /**
  * 오크 이미지 공통 렌더
