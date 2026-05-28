@@ -68,6 +68,14 @@ export function drawHUD(ctx, player, gameTime, killCount, score) {
   ctx.fillText(`☠ ${killCount}  ✦ ${score}`, W-14+1, 30+1);
   ctx.fillStyle = '#ecf0f1';
   ctx.fillText(`☠ ${killCount}  ✦ ${score}`, W-14, 30);
+
+  // ---- Pause button (touch target: top-right 90×90) ----
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  roundRect(ctx, W-58, 42, 42, 30, 6);
+  ctx.fill();
+  ctx.font = 'bold 16px "Segoe UI"';
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillText('⏸', W-37, 63);
   ctx.textAlign = 'left';
 
   // ---- Bottom: weapon cooldown icons ----
@@ -174,7 +182,7 @@ export function drawLevelUpScreen(ctx, options, hoveredIdx) {
 
   ctx.font = '16px "Segoe UI"';
   ctx.fillStyle = '#aaa';
-  ctx.fillText('Choose an upgrade — click or press 1-4', W/2, H/2 - 125);
+  ctx.fillText('Choose an upgrade — Tap  /  Click  /  1-4', W/2, H/2 - 125);
   ctx.textAlign = 'left';
 
   const totalW  = options.length * CARD_W + (options.length-1) * 20;
@@ -257,7 +265,7 @@ export function drawPauseScreen(ctx) {
   ctx.fillText('PAUSED', W/2, H/2 - 20);
   ctx.font = '20px "Segoe UI"';
   ctx.fillStyle = '#aaa';
-  ctx.fillText('Press  ESC  to resume', W/2, H/2 + 30);
+  ctx.fillText('Press ESC  or  Tap  to resume', W/2, H/2 + 30);
   ctx.textAlign = 'left';
 }
 
@@ -286,7 +294,7 @@ export function drawGameOverScreen(ctx, stats) {
 
   ctx.font = '18px "Segoe UI"';
   ctx.fillStyle = '#FFD700';
-  ctx.fillText('Press  ENTER  to try again', W/2, H/2 + 120);
+  ctx.fillText('Tap  or  Press ENTER  to try again', W/2, H/2 + 120);
   ctx.textAlign = 'left';
 }
 
@@ -334,15 +342,15 @@ export function drawMenuScreen(ctx) {
 
   ctx.font = '15px "Segoe UI"';
   ctx.fillStyle = '#888';
-  ctx.fillText('WASD / Arrow Keys to move    Weapons fire automatically', W/2, H/2 + 60);
-  ctx.fillText('ESC to pause    Collect XP Gems to level up', W/2, H/2 + 82);
+  ctx.fillText('WASD / Arrow Keys  or  Touch Joystick to move', W/2, H/2 + 60);
+  ctx.fillText('Weapons fire automatically    Collect XP Gems to level up', W/2, H/2 + 82);
 
   // Start prompt
   const pulse = 0.6 + 0.4 * Math.sin(Date.now() * 0.003);
   ctx.globalAlpha = pulse;
   ctx.font = 'bold 24px "Segoe UI"';
   ctx.fillStyle = '#FFD700';
-  ctx.fillText('Press  ENTER  to begin', W/2, H/2 + 140);
+  ctx.fillText('Tap  or  Press ENTER  to begin', W/2, H/2 + 140);
   ctx.globalAlpha = 1;
 
   ctx.textAlign = 'left';

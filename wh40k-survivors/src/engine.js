@@ -98,17 +98,17 @@ export class Camera {
   }
 }
 
-// ---- Keyboard Input ----
+// ---- Keyboard + Touch Input ----
 export class Input {
   constructor() {
-    this._down       = new Set();
+    this._down        = new Set();
     this._justPressed = new Set();
-    this._pending    = new Set();
+    this._pending     = new Set();
+    this._touch       = { active: false, id: -1, startX: 0, startY: 0, dx: 0, dy: 0 };
 
     window.addEventListener('keydown', e => {
       if (!this._down.has(e.code)) this._pending.add(e.code);
       this._down.add(e.code);
-      // prevent arrow-key page scrolling
       if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) {
         e.preventDefault();
       }
@@ -117,6 +117,34 @@ export class Input {
       this._down.delete(e.code);
     });
   }
+
+  // ---- Touch joystick API (called by game.js) ----
+  startTouch(id, clientX, clientY) {
+    if (this._touch.active) return;
+    Object.assign(this._touch, { active: true, id, startX: clientX, startY: clientY, dx: 0, dy: 0 });
+  }
+  moveTouch(changedTouches) {
+    for (const t of changedTouches) {
+      if (t.identifier === this._touch.id) {
+        this._touch.dx = t.clientX - this._touch.startX;
+        this._touch.dy = t.clientY - this._touch.startY;
+        break;
+      }
+    }
+  }
+  endTouch(changedTouches) {
+    for (const t of changedTouches) {
+      if (t.identifier === this._touch.id) {
+        Object.assign(this._touch, { active: false, dx: 0, dy: 0 });
+        break;
+      }
+    }
+  }
+  resetTouch() { Object.assign(this._touch, { active: false, dx: 0, dy: 0 }); }
+
+  get touchActive() { return this._touch.active; }
+  get touchStart()  { return { x: this._touch.startX, y: this._touch.startY }; }
+  get touchDelta()  { return { dx: this._touch.dx,    dy: this._touch.dy    }; }
 
   /** Call once per frame before update logic. */
   flush() {
@@ -127,14 +155,20 @@ export class Input {
   isDown(code)     { return this._down.has(code); }
   wasPressed(code) { return this._justPressed.has(code); }
 
-  /** Returns normalised dx/dy based on WASD / Arrow keys. */
+  /** Returns normalised dx/dy from WASD / Arrow keys or touch joystick. */
   getMovement() {
     let dx = 0, dy = 0;
     if (this.isDown('KeyA') || this.isDown('ArrowLeft'))  dx -= 1;
     if (this.isDown('KeyD') || this.isDown('ArrowRight')) dx += 1;
     if (this.isDown('KeyW') || this.isDown('ArrowUp'))    dy -= 1;
     if (this.isDown('KeyS') || this.isDown('ArrowDown'))  dy += 1;
-    if (dx !== 0 && dy !== 0) { dx /= Math.SQRT2; dy /= Math.SQRT2; }
+    if (dx === 0 && dy === 0 && this._touch.active) {
+      const MAX = 55; // screen-pixel travel for full speed
+      dx = Math.max(-1, Math.min(1, this._touch.dx / MAX));
+      dy = Math.max(-1, Math.min(1, this._touch.dy / MAX));
+    }
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len > 1) { dx /= len; dy /= len; }
     return { dx, dy };
   }
 }

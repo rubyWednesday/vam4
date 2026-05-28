@@ -184,6 +184,62 @@ export class Game {
         }
       }
     });
+
+    // ---- Touch controls ----
+    const getTouchCanvasPos = (touch) => {
+      const rect = this.canvas.getBoundingClientRect();
+      return {
+        mx: (touch.clientX - rect.left) * (CANVAS.WIDTH  / rect.width),
+        my: (touch.clientY - rect.top)  * (CANVAS.HEIGHT / rect.height),
+      };
+    };
+
+    this.canvas.addEventListener('touchstart', e => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      const { mx, my } = getTouchCanvasPos(t);
+
+      if (this.state === 'menu' || this.state === 'gameover') {
+        this._startGame(); return;
+      }
+      if (this.state === 'paused') {
+        this.state = 'playing'; return;
+      }
+      if (this.state === 'levelup') {
+        const n = this.levelUpOptions.length;
+        const CARD_W = 240, GAP = 20;
+        const totalW = n * CARD_W + (n-1) * GAP;
+        const startX = (CANVAS.WIDTH - totalW) / 2;
+        const cardY  = CANVAS.HEIGHT / 2 - 80;
+        for (let i = 0; i < n; i++) {
+          const cx = startX + i * (CARD_W + GAP);
+          if (mx >= cx && mx <= cx + CARD_W && my >= cardY && my <= cardY + 170) {
+            this._applyUpgrade(this.levelUpOptions[i]); return;
+          }
+        }
+        return;
+      }
+      if (this.state === 'playing') {
+        // Pause button: top-right 90×90 canvas area
+        if (mx > CANVAS.WIDTH - 90 && my < 90) { this.state = 'paused'; return; }
+        this.input.startTouch(t.identifier, t.clientX, t.clientY);
+      }
+    }, { passive: false });
+
+    this.canvas.addEventListener('touchmove', e => {
+      e.preventDefault();
+      this.input.moveTouch(e.changedTouches);
+    }, { passive: false });
+
+    this.canvas.addEventListener('touchend', e => {
+      e.preventDefault();
+      this.input.endTouch(e.changedTouches);
+    }, { passive: false });
+
+    this.canvas.addEventListener('touchcancel', e => {
+      e.preventDefault();
+      this.input.endTouch(e.changedTouches);
+    }, { passive: false });
   }
 
   _startGame() {
@@ -194,6 +250,7 @@ export class Game {
     this.world.reset();
     this.gameTime = 0;
     this.bossWarningTimer = 0;
+    this.input.resetTouch();
 
     // Give starting weapon
     const bolter = createWeapon('bolter', this);
@@ -493,6 +550,31 @@ export class Game {
     // --- HUD ---
     drawHUD(ctx, this.player, this.gameTime, this.player.killCount, this.player.score);
     drawBossWarning(ctx, this.bossWarningTimer);
+
+    // --- Virtual joystick (touch only) ---
+    if (this.input.touchActive && this.state === 'playing') {
+      const rect  = this.canvas.getBoundingClientRect();
+      const sx    = CANVAS.WIDTH  / rect.width;
+      const sy    = CANVAS.HEIGHT / rect.height;
+      const jx    = (this.input.touchStart.x - rect.left) * sx;
+      const jy    = (this.input.touchStart.y - rect.top)  * sy;
+      const MAX   = 55;
+      const tdx   = Math.max(-MAX, Math.min(MAX, this.input.touchDelta.dx));
+      const tdy   = Math.max(-MAX, Math.min(MAX, this.input.touchDelta.dy));
+      const tx    = jx + tdx * sx;
+      const ty    = jy + tdy * sy;
+      const baseR = MAX * sx;
+      const thumbR = 20 * sx;
+      ctx.save();
+      ctx.globalAlpha = 0.28;
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * sx;
+      ctx.beginPath(); ctx.arc(jx, jy, baseR, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(jx, jy, baseR, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath(); ctx.arc(tx, ty, thumbR, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
 
     // --- Overlays ---
     if (this.state === 'paused') {
