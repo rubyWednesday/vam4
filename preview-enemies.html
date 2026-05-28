@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Enemy Sprites Preview</title>
+  <style>
+    body { background:#1a1a2e; display:flex; flex-wrap:wrap; gap:28px;
+           padding:32px; font-family:monospace; color:#fff; align-items:flex-start; }
+    .section { display:flex; flex-direction:column; gap:16px; }
+    .row     { display:flex; gap:24px; align-items:flex-end; }
+    .box     { display:flex; flex-direction:column; align-items:center; gap:6px; }
+    canvas   { image-rendering:pixelated; border:2px solid #444; background:#333a55; }
+    label    { font-size:12px; color:#aaa; text-align:center; }
+    h3       { color:#ffd700; margin:0 0 4px; font-size:14px; }
+    h4       { color:#88aaff; margin:4px 0 0; font-size:12px; }
+    .img-src { border:2px solid #ffd700 !important; }
+  </style>
+</head>
+<body>
+
+<div class="section">
+  <h3>🎮 Enemy Sprites — WH40K Survivors</h3>
+  <h4>* ork 이미지 기반 적: 노란 테두리 / 픽셀아트 적: 회색 테두리</h4>
+
+  <div class="row" id="row-images">
+    <div class="box">
+      <h3>📷 ork1.png 원본</h3>
+      <img src="./assets/ork1.png" style="width:148px; border:2px solid #ffd700; image-rendering:pixelated;">
+      <label>Ork Boy (r=13)</label>
+    </div>
+    <div class="box">
+      <h3>📷 ork2.png 원본</h3>
+      <img src="./assets/ork2.png" style="width:148px; border:2px solid #ffd700; image-rendering:pixelated;">
+      <label>Nob (r=17)</label>
+    </div>
+  </div>
+
+  <div class="row" id="previews"></div>
+</div>
+
+<script>
+// ── 배경 제거 ──────────────────────────────────────────────
+function removeBackground(img, tol=90) {
+  const W = img.naturalWidth, H = img.naturalHeight;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const c = cv.getContext('2d');
+  c.drawImage(img, 0, 0);
+  try {
+    const id = c.getImageData(0,0,W,H), data = id.data;
+    const bgR=data[0],bgG=data[1],bgB=data[2];
+    for (let i=0;i<data.length;i+=4) {
+      const r=data[i],g=data[i+1],b=data[i+2];
+      if(Math.abs(r-bgR)+Math.abs(g-bgG)+Math.abs(b-bgB)<tol) data[i+3]=0;
+    }
+    c.putImageData(id,0,0);
+  } catch(e) { console.warn('BG remove failed'); }
+  return cv;
+}
+
+// ── 공통 유틸 ──────────────────────────────────────────────
+function makeCv(SIZE) {
+  const cv=document.createElement('canvas');
+  cv.width=cv.height=SIZE;
+  return cv;
+}
+function box(cv, label, isImg=false) {
+  const b=document.createElement('div'); b.className='box';
+  const lbl=document.createElement('label'); lbl.textContent=label;
+  cv.style.border=`2px solid ${isImg?'#ffd700':'#555'}`;
+  b.append(lbl,cv);
+  document.getElementById('previews').appendChild(b);
+}
+function dropShadow(ctx,r) {
+  ctx.fillStyle='rgba(0,0,0,0.32)';
+  ctx.beginPath();
+  ctx.ellipse(0,r*0.9,r*0.7,r*0.2,0,0,Math.PI*2);
+  ctx.fill();
+}
+
+// ── 픽셀아트 엔진 ──────────────────────────────────────────
+function pxDraw(ctx,grid,pal,pw) {
+  const cols=grid[0].length, rows=grid.length;
+  const ox=Math.round(-(cols*pw)/2), oy=Math.round(-(rows*pw)/2);
+  for(let y=0;y<rows;y++) for(let x=0;x<grid[y].length;x++) {
+    const c=grid[y][x]; if(c==='x'||!pal[c]) continue;
+    ctx.fillStyle=pal[c];
+    ctx.fillRect(ox+x*pw,oy+y*pw,pw,pw);
+  }
+}
+function pxGlow(ctx,grid,pal,pw,keys,color,blur) {
+  const cols=grid[0].length, ox=Math.round(-(cols*pw)/2), oy=Math.round(-(grid.length*pw)/2);
+  ctx.shadowColor=color; ctx.shadowBlur=blur;
+  for(let y=0;y<grid.length;y++) for(let x=0;x<grid[y].length;x++) {
+    const c=grid[y][x]; if(!keys.includes(c)||!pal[c]) continue;
+    ctx.fillStyle=pal[c]; ctx.fillRect(ox+x*pw,oy+y*pw,pw,pw);
+  }
+  ctx.shadowBlur=0; ctx.shadowColor='transparent';
+}
+
+// ── 이미지 기반 렌더 ───────────────────────────────────────
+function renderOrkImage(orkCv, r, label, M=4.5) {
+  const SIZE=r*6;
+  const cv=makeCv(SIZE); const ctx=cv.getContext('2d');
+  ctx.fillStyle='#3a3050'; ctx.fillRect(0,0,SIZE,SIZE);
+  ctx.save(); ctx.translate(SIZE/2,SIZE/2);
+  dropShadow(ctx,r);
+  const scale=(r*M)/orkCv.height;
+  const dw=orkCv.width*scale, dh=orkCv.height*scale;
+  ctx.drawImage(orkCv,-dw/2,-dh/2,dw,dh);
+  ctx.restore();
+  // collision ring
+  ctx.strokeStyle='rgba(255,255,0,0.2)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.arc(SIZE/2,SIZE/2,r,0,Math.PI*2); ctx.stroke();
+  box(cv,label,true);
+}
+
+// ── 픽셀아트 렌더 (Gretchin) ───────────────────────────────
+function renderGretchin(r) {
+  const SIZE=r*6; const cv=makeCv(SIZE); const ctx=cv.getContext('2d');
+  ctx.fillStyle='#3a3050'; ctx.fillRect(0,0,SIZE,SIZE);
+  ctx.save(); ctx.translate(SIZE/2,SIZE/2);
+  const pw=Math.max(2,Math.round(r*0.36));
+  const pal={k:'#0a0a08',g:'#3a8022',e:'#c8e000',b:'#5a3010',n:'#1a1a22',t:'#c0c0a0'};
+  const grid=[
+    'kgkxxxxxkgk',
+    'kggkxxxkggk',
+    'xkgggggggkx',
+    'xkggeegggkx',
+    'xkgggggggkx',
+    'xkgktttkgkx',
+    'xxkbbbbbkxx',
+    'xkgbbbbgnkx',
+    'xxkgbbgnnnx',
+    'xxxkgkgnnnx',
+    'xxxkbkbkxxx',
+    'xxxxxxxxxxx',
+  ];
+  dropShadow(ctx,r);
+  pxGlow(ctx,grid,pal,pw,'e','#c8e000',pw*5);
+  pxDraw(ctx,grid,pal,pw);
+  ctx.strokeStyle='rgba(255,255,0,0.2)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.stroke();
+  ctx.restore();
+  box(cv,`Gretchin r=${r} (px)`);
+}
+
+// ── 픽셀아트 렌더 (Deff Dread) ────────────────────────────
+function renderDeffDread(r) {
+  const SIZE=r*6+40; const cv=makeCv(SIZE); const ctx=cv.getContext('2d');
+  ctx.fillStyle='#3a3050'; ctx.fillRect(0,0,SIZE,SIZE);
+  ctx.save(); ctx.translate(SIZE/2,SIZE/2);
+  const pw=Math.max(3,Math.round(r*0.18));
+  // boss aura
+  const pulse=0.5+0.3*Math.sin(Date.now()*0.004);
+  const grad=ctx.createRadialGradient(0,0,r*0.2,0,0,r*1.6);
+  grad.addColorStop(0,`rgba(30,80,200,${pulse*0.45})`);
+  grad.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=grad; ctx.beginPath(); ctx.ellipse(0,0,r*1.6,r*1.6,0,0,Math.PI*2); ctx.fill();
+  const pal={k:'#080814',m:'#181828',M:'#2a2a40',r:'#6a2800',g:'#104010',e:'#ee2000',c:'#806000',p:'#101010',w:'#38385a'};
+  const grid=[
+    'xxxxxxpxxxxpxxxx',
+    'xxxxxxpxxxxpxxxx',
+    'xxxxxkMMMMMMkxxx',
+    'xxxxkMMMMMMMMkxx',
+    'xxxxkMeMMMMeMkxx',
+    'xxxxkMggggggMkxx',
+    'xxxxkMmmmmmmMkxx',
+    'kkMMMMMMMMMMMMkk',
+    'ckkMrMMMMMMrMkkc',
+    'cckkMMMMMMMMkkcc',
+    'cxkMMMMMMMMMkxcc',
+    'xxkMMMMMMMMMMkxx',
+    'xxkMMwwMMwwMMkxx',
+    'xxkMMMMMMMMMMkxx',
+    'xxxkMMkxxkMMkxxx',
+    'xxkMMMkxxkMMMkxx',
+  ];
+  dropShadow(ctx,r);
+  pxGlow(ctx,grid,pal,pw,'e','#ee2000',pw*4);
+  pxDraw(ctx,grid,pal,pw);
+  ctx.strokeStyle='rgba(255,255,0,0.2)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.stroke();
+  ctx.restore();
+  box(cv,`Deff Dread r=${r} (px)`);
+}
+
+// ── 메인 ──────────────────────────────────────────────────
+function loadImg(src) {
+  return new Promise(res => {
+    const img=new Image(); img.onload=()=>res(img);
+    img.onerror=()=>{ console.error('load fail:',src); res(null); };
+    img.src=src;
+  });
+}
+
+(async () => {
+  const [img1,img2] = await Promise.all([
+    loadImg('./assets/ork1.png'),
+    loadImg('./assets/ork2.png'),
+  ]);
+
+  const cv1 = img1 ? removeBackground(img1) : null;
+  const cv2 = img2 ? removeBackground(img2) : null;
+
+  // 1. Gretchin — pixel art (r=8)
+  renderGretchin(8);
+
+  // 2. Ork Boy — ork1 image (r=13)
+  if(cv1) renderOrkImage(cv1, 13, 'Ork Boy r=13 (ork1.png)');
+
+  // 3. Nob — ork2 image (r=17)
+  if(cv2) renderOrkImage(cv2, 17, 'Nob r=17 (ork2.png)');
+
+  // 4. Deff Dread — pixel art boss (r=34)
+  renderDeffDread(34);
+})();
+</script>
+</body>
+</html>
