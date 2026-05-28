@@ -15,7 +15,7 @@ import { Bolter, createWeapon } from './weapons.js';
 import {
   drawHUD, drawLevelUpScreen, drawPauseScreen,
   drawGameOverScreen, drawMenuScreen, drawBossWarning,
-  buildLevelUpOptions,
+  buildLevelUpOptions, getCardLayout,
 } from './ui.js';
 import { WorldSystem } from './world.js';
 
@@ -144,20 +144,15 @@ export class Game {
     this.canvas.addEventListener('mousemove', e => {
       if (this.state !== 'levelup') return;
       const rect = this.canvas.getBoundingClientRect();
-      const scaleX = CANVAS.WIDTH  / rect.width;
-      const scaleY = CANVAS.HEIGHT / rect.height;
-      const mx = (e.clientX - rect.left) * scaleX;
-      const my = (e.clientY - rect.top)  * scaleY;
+      const mx = (e.clientX - rect.left) * (CANVAS.WIDTH  / rect.width);
+      const my = (e.clientY - rect.top)  * (CANVAS.HEIGHT / rect.height);
 
       const n = this.levelUpOptions.length;
-      const CARD_W = 240, GAP = 20;
-      const totalW = n * CARD_W + (n-1) * GAP;
-      const startX = (CANVAS.WIDTH - totalW) / 2;
-      const cardY  = CANVAS.HEIGHT/2 - 80;
+      const { CARD_W, CARD_H, GAP, startX, cardY } = getCardLayout(CANVAS.WIDTH, CANVAS.HEIGHT, n);
 
       for (let i = 0; i < n; i++) {
         const cx = startX + i*(CARD_W+GAP);
-        if (mx >= cx && mx <= cx+CARD_W && my >= cardY && my <= cardY+170) {
+        if (mx >= cx && mx <= cx+CARD_W && my >= cardY && my <= cardY+CARD_H) {
           this.hoveredCard = i; return;
         }
       }
@@ -166,20 +161,15 @@ export class Game {
     this.canvas.addEventListener('click', e => {
       if (this.state !== 'levelup') return;
       const rect = this.canvas.getBoundingClientRect();
-      const scaleX = CANVAS.WIDTH  / rect.width;
-      const scaleY = CANVAS.HEIGHT / rect.height;
-      const mx = (e.clientX - rect.left) * scaleX;
-      const my = (e.clientY - rect.top)  * scaleY;
+      const mx = (e.clientX - rect.left) * (CANVAS.WIDTH  / rect.width);
+      const my = (e.clientY - rect.top)  * (CANVAS.HEIGHT / rect.height);
 
       const n = this.levelUpOptions.length;
-      const CARD_W = 240, GAP = 20;
-      const totalW = n * CARD_W + (n-1) * GAP;
-      const startX = (CANVAS.WIDTH - totalW) / 2;
-      const cardY  = CANVAS.HEIGHT/2 - 80;
+      const { CARD_W, CARD_H, GAP, startX, cardY } = getCardLayout(CANVAS.WIDTH, CANVAS.HEIGHT, n);
 
       for (let i = 0; i < n; i++) {
         const cx = startX + i*(CARD_W+GAP);
-        if (mx >= cx && mx <= cx+CARD_W && my >= cardY && my <= cardY+170) {
+        if (mx >= cx && mx <= cx+CARD_W && my >= cardY && my <= cardY+CARD_H) {
           this._applyUpgrade(this.levelUpOptions[i]); return;
         }
       }
@@ -207,13 +197,10 @@ export class Game {
       }
       if (this.state === 'levelup') {
         const n = this.levelUpOptions.length;
-        const CARD_W = 240, GAP = 20;
-        const totalW = n * CARD_W + (n-1) * GAP;
-        const startX = (CANVAS.WIDTH - totalW) / 2;
-        const cardY  = CANVAS.HEIGHT / 2 - 80;
+        const { CARD_W, CARD_H, GAP, startX, cardY } = getCardLayout(CANVAS.WIDTH, CANVAS.HEIGHT, n);
         for (let i = 0; i < n; i++) {
           const cx = startX + i * (CARD_W + GAP);
-          if (mx >= cx && mx <= cx + CARD_W && my >= cardY && my <= cardY + 170) {
+          if (mx >= cx && mx <= cx + CARD_W && my >= cardY && my <= cardY + CARD_H) {
             this._applyUpgrade(this.levelUpOptions[i]); return;
           }
         }

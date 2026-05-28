@@ -4,8 +4,6 @@
 import { WEAPONS_DATA, PASSIVES_DATA } from './data.js';
 import { roundRect, formatTime, shuffle } from './engine.js';
 
-const CARD_W = 240, CARD_H = 170, CARD_R = 12;
-
 // ============================================================
 // HUD — drawn each frame during play
 // ============================================================
@@ -162,6 +160,21 @@ export function buildLevelUpOptions(player) {
 }
 
 // ============================================================
+// Card layout helper (shared with game.js for hit detection)
+// ============================================================
+export function getCardLayout(W, H, n) {
+  const small  = W <= 700;
+  const CARD_W = small ? 140 : 240;
+  const CARD_H = small ? 155 : 170;
+  const CARD_R = small ? 8   : 12;
+  const GAP    = small ? 8   : 20;
+  const totalW = n * CARD_W + (n-1) * GAP;
+  const startX = (W - totalW) / 2;
+  const cardY  = small ? H/2 - 65 : H/2 - 80;
+  return { CARD_W, CARD_H, CARD_R, GAP, startX, cardY };
+}
+
+// ============================================================
 // Level-up screen overlay
 // ============================================================
 export function drawLevelUpScreen(ctx, options, hoveredIdx) {
@@ -171,33 +184,30 @@ export function drawLevelUpScreen(ctx, options, hoveredIdx) {
   ctx.fillStyle = 'rgba(0,0,10,0.78)';
   ctx.fillRect(0, 0, W, H);
 
+  const small = W <= 700;
+  const { CARD_W, CARD_H, CARD_R, GAP, startX, cardY } = getCardLayout(W, H, options.length);
+
   // Title banner
-  ctx.font = 'bold 36px "Segoe UI"';
+  ctx.font = small ? 'bold 22px "Segoe UI"' : 'bold 36px "Segoe UI"';
   ctx.textAlign = 'center';
   ctx.fillStyle = '#FFD700';
   ctx.shadowColor = '#FFD700';
   ctx.shadowBlur = 20;
-  ctx.fillText('⚡ LEVEL UP ⚡', W/2, H/2 - 160);
+  ctx.fillText('⚡ LEVEL UP ⚡', W/2, cardY - (small ? 50 : 80));
   ctx.shadowBlur = 0;
 
-  ctx.font = '16px "Segoe UI"';
+  ctx.font = small ? '12px "Segoe UI"' : '16px "Segoe UI"';
   ctx.fillStyle = '#aaa';
-  ctx.fillText('Choose an upgrade — Tap  /  Click  /  1-4', W/2, H/2 - 125);
+  ctx.fillText('Choose an upgrade — Tap  /  Click  /  1-4', W/2, cardY - (small ? 20 : 45));
   ctx.textAlign = 'left';
 
-  const totalW  = options.length * CARD_W + (options.length-1) * 20;
-  const startX  = (W - totalW) / 2;
-  const cardY   = H/2 - 80;
-
   options.forEach((opt, i) => {
-    const cx  = startX + i * (CARD_W + 20);
+    const cx  = startX + i * (CARD_W + GAP);
     const cy  = cardY;
     const hov = i === hoveredIdx;
 
     // Card bg
-    ctx.fillStyle = hov
-      ? 'rgba(255,215,0,0.18)'
-      : 'rgba(20,20,40,0.92)';
+    ctx.fillStyle = hov ? 'rgba(255,215,0,0.18)' : 'rgba(20,20,40,0.92)';
     roundRect(ctx, cx, cy, CARD_W, CARD_H, CARD_R);
     ctx.fill();
 
@@ -215,35 +225,36 @@ export function drawLevelUpScreen(ctx, options, hoveredIdx) {
 
     // Hotkey badge
     ctx.fillStyle = '#FFD700';
-    ctx.font = 'bold 16px "Segoe UI"';
+    ctx.font = `bold ${small ? 13 : 16}px "Segoe UI"`;
     ctx.textAlign = 'center';
-    ctx.fillText(`[${i+1}]`, cx + 20, cy + 30);
+    ctx.fillText(`[${i+1}]`, cx + 16, cy + 28);
 
     // Name
     ctx.fillStyle = '#fff';
-    ctx.font = `bold ${hov ? 17 : 16}px "Segoe UI"`;
-    ctx.fillText(opt.data.name, cx + CARD_W/2, cy + 50);
+    ctx.font = `bold ${small ? (hov ? 13 : 12) : (hov ? 17 : 16)}px "Segoe UI"`;
+    ctx.fillText(opt.data.name, cx + CARD_W/2, cy + (small ? 44 : 50));
 
     // Subtitle
     ctx.fillStyle = '#aad';
-    ctx.font = '11px "Segoe UI"';
+    ctx.font = `${small ? 10 : 11}px "Segoe UI"`;
     let sub = '';
     if (opt.type === 'weaponNew')  sub = `NEW  Lv.1 / ${opt.data.maxLevel}`;
     if (opt.type === 'weaponUp')   sub = `UPGRADE  Lv.${opt.currentLevel} → ${opt.currentLevel+1}`;
     if (opt.type === 'passive')    sub = opt.currentLevel === 0 ? `NEW PASSIVE` : `PASSIVE  Lv.${opt.currentLevel} → ${opt.currentLevel+1}`;
     if (opt.type === 'heal')       sub = `RECOVERY`;
-    ctx.fillText(sub, cx + CARD_W/2, cy + 70);
+    ctx.fillText(sub, cx + CARD_W/2, cy + (small ? 60 : 70));
 
     // Description
     ctx.fillStyle = '#ccc';
-    ctx.font = '12px "Segoe UI"';
+    ctx.font = `${small ? 10 : 12}px "Segoe UI"`;
     const words = opt.data.desc.split(' ');
-    let line = '', lineY = cy + 96;
+    let line = '', lineY = cy + (small ? 78 : 96);
+    const lineH = small ? 14 : 17;
     for (const word of words) {
       const test = line ? `${line} ${word}` : word;
       if (ctx.measureText(test).width > CARD_W - 24) {
         ctx.fillText(line, cx + CARD_W/2, lineY);
-        line = word; lineY += 17;
+        line = word; lineY += lineH;
       } else { line = test; }
     }
     if (line) ctx.fillText(line, cx + CARD_W/2, lineY);
